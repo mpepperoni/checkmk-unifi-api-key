@@ -83,7 +83,6 @@ package_parts = [ (part, title, perm) for part, title, perm in [
   ( "doc",           "Documentation files",  0o644 ),
   ( "bin",           "Binaries",             0o755 ),
   ( "lib",           "Libraries",            0o644 ),
-  ( "locale",        "Localization",         0o644 ),
   ( "mibs",          "SNMP MIBs",            0o644 ),
 ]]
 
