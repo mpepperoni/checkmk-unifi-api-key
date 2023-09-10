@@ -16,19 +16,20 @@
 import argparse
 import json
 import sys
-import pprint
 
 import requests
 import urllib3  # type: ignore[import]
 
 import cmk.utils.password_store
 
+
 def parse_arguments(argv):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-u', '--user', required=True, help="Username for Unifi controller login")
     parser.add_argument('-p', '--password', required=True, help="Password for Unifi controller login")
     parser.add_argument('-P', '--port', required=True, help="Port for connection to Unifi controller")
-    parser.add_argument('-S', '--sites', nargs="+", required=False, default=[], help="Sites to Discover. Use the keyword \"all\" for all sites.")
+    parser.add_argument('-S', '--sites', nargs="+", required=False, default=[],
+                        help="Sites to Discover. Use the keyword \"all\" for all sites.")
 
     parser.add_argument('--no-cert-check',
                         action='store_true',
@@ -51,10 +52,10 @@ def main(argv=None):
 
     print("<<<check_mk>>>")
     print("Version: 1.0")
-    #print("BuildDate: Jan 20 2022")
+    # print("BuildDate: Jan 20 2022")
     print("Hostname: %s" % args.host)
     print("AgentOS: Unifi Special-Agent")
-    #print("Architecture: 32bit")
+    # print("Architecture: 32bit")
 
     # Initial Connection & get Session Key (Login)
     try:
@@ -65,14 +66,14 @@ def main(argv=None):
                             },
                             timeout=10,
                             verify=not args.no_cert_check)
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
         sys.stderr.write('Network connection failed: %s\n' % e)
-    except requests.exceptions.Timeout:
+    except requests.exceptions.Timeout as e:
         sys.stderr.write('Connection timeout: %s\n' % e)
-    except requests.exceptions.RequestException as e:
-        sys.stderr.write('Request-Error: %s\n' % e)
     except requests.exceptions.HTTPError as e:
         sys.stderr.write('HTTP-Error: %s\n' % e)
+    except requests.exceptions.RequestException as e:
+        sys.stderr.write('Request-Error: %s\n' % e)
     except (requests.exceptions.InvalidJSONError, TypeError) as e:
         sys.stderr.write('Invalid JSON Error: %s\n' % e)
     except Exception as e:
@@ -86,30 +87,28 @@ def main(argv=None):
         try:
             # As Response we get the key also in json format. We just need the
             # key in our header for all further requests on the api.
-            #cookies = json.loads(req.headers["Set-Cookie"])
+            # cookies = json.loads(req.headers["Set-Cookie"])
             cookies = req.headers["Set-Cookie"]
         except Exception:
             raise Exception("No session key received")
 
-
-
     # Get the requested data. We put every needed value into an extra section
     # to get better performance in the checkplugin if less data is needed.
     try:
-        req = requests.get("%s/s/default/stat/sysinfo" % (url),
-                           headers={'Cookie':cookies},
+        req = requests.get("%s/s/default/stat/sysinfo" % url,
+                           headers={'Cookie': cookies},
                            timeout=10,
                            verify=not args.no_cert_check)
         req.raise_for_status()
         data = req.json().get('data')[0]
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
         sys.stderr.write('Network connection failed: %s\n' % e)
-    except requests.exceptions.Timeout:
+    except requests.exceptions.Timeout as e:
         sys.stderr.write('Connection timeout: %s\n' % e)
-    except requests.exceptions.RequestException as e:
-        sys.stderr.write('Request-Error: %s\n' % e)
     except requests.exceptions.HTTPError as e:
         sys.stderr.write('HTTP-Error: %s\n' % e)
+    except requests.exceptions.RequestException as e:
+        sys.stderr.write('Request-Error: %s\n' % e)
     except (requests.exceptions.InvalidJSONError, TypeError) as e:
         sys.stderr.write('Invalid JSON Error: %s\n' % e)
     except Exception as e:
@@ -118,23 +117,21 @@ def main(argv=None):
         print("<<<unifi_controller:sep(0)>>>")
         sys.stdout.write("%s\n" % json.dumps(data, separators=(',', ':')))
 
-
-
     try:
-        req = requests.get("%s/stat/sites" % (url),
-                           headers={'Cookie':cookies},
+        req = requests.get("%s/stat/sites" % url,
+                           headers={'Cookie': cookies},
                            timeout=10,
                            verify=not args.no_cert_check)
         req.raise_for_status()
         sites = req.json().get('data')
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
         sys.stderr.write('Network connection failed: %s\n' % e)
-    except requests.exceptions.Timeout:
+    except requests.exceptions.Timeout as e:
         sys.stderr.write('Connection timeout: %s\n' % e)
-    except requests.exceptions.RequestException as e:
-        sys.stderr.write('Request-Error: %s\n' % e)
     except requests.exceptions.HTTPError as e:
         sys.stderr.write('HTTP-Error: %s\n' % e)
+    except requests.exceptions.RequestException as e:
+        sys.stderr.write('Request-Error: %s\n' % e)
     except (requests.exceptions.InvalidJSONError, TypeError) as e:
         sys.stderr.write('Invalid JSON Error: %s\n' % e)
     except Exception as e:
@@ -143,28 +140,27 @@ def main(argv=None):
         print("<<<unifi_controller_sites:sep(0)>>>")
         sys.stdout.write("%s\n" % json.dumps(sites, separators=(',', ':')))
 
-
-    for site in  sites:
-        if (site.get("desc") in args.sites) or (len(args.sites)==1 and args.sites[0]=="all"):
+    for site in sites:
+        if (site.get("desc") in args.sites) or (len(args.sites) == 1 and args.sites[0] == "all"):
             print("<<<<%s>>>>" % site.get('desc'))
 
             # Get the requested data. We put every needed value into an extra section
             # to get better performance in the checkplugin if less data is needed.
             try:
                 req = requests.get("%s/s/%s/stat/sysinfo" % (url, site.get("name")),
-                                   headers={'Cookie':cookies},
+                                   headers={'Cookie': cookies},
                                    timeout=10,
                                    verify=not args.no_cert_check)
                 req.raise_for_status()
                 data = req.json().get('data')[0]
-            except requests.exceptions.ConnectionError:
+            except requests.exceptions.ConnectionError as e:
                 sys.stderr.write('Network connection failed: %s\n' % e)
-            except requests.exceptions.Timeout:
+            except requests.exceptions.Timeout as e:
                 sys.stderr.write('Connection timeout: %s\n' % e)
-            except requests.exceptions.RequestException as e:
-                sys.stderr.write('Request-Error: %s\n' % e)
             except requests.exceptions.HTTPError as e:
                 sys.stderr.write('HTTP-Error: %s\n' % e)
+            except requests.exceptions.RequestException as e:
+                sys.stderr.write('Request-Error: %s\n' % e)
             except (requests.exceptions.InvalidJSONError, TypeError) as e:
                 sys.stderr.write('Invalid JSON Error: %s\n' % e)
             except Exception as e:
@@ -173,22 +169,21 @@ def main(argv=None):
                 print("<<<unifi_site_controller:sep(0)>>>")
                 sys.stdout.write("%s\n" % json.dumps(data, separators=(',', ':')))
 
-
             try:
                 req = requests.get("%s/s/%s/stat/health" % (url, site.get("name")),
-                                   headers={'Cookie':cookies},
+                                   headers={'Cookie': cookies},
                                    timeout=10,
                                    verify=not args.no_cert_check)
                 req.raise_for_status()
                 data = req.json().get('data')[0]
-            except requests.exceptions.ConnectionError:
+            except requests.exceptions.ConnectionError as e:
                 sys.stderr.write('Network connection failed: %s\n' % e)
-            except requests.exceptions.Timeout:
+            except requests.exceptions.Timeout as e:
                 sys.stderr.write('Connection timeout: %s\n' % e)
-            except requests.exceptions.RequestException as e:
-                sys.stderr.write('Request-Error: %s\n' % e)
             except requests.exceptions.HTTPError as e:
                 sys.stderr.write('HTTP-Error: %s\n' % e)
+            except requests.exceptions.RequestException as e:
+                sys.stderr.write('Request-Error: %s\n' % e)
             except (requests.exceptions.InvalidJSONError, TypeError) as e:
                 sys.stderr.write('Invalid JSON Error: %s\n' % e)
             except Exception as e:
@@ -199,30 +194,28 @@ def main(argv=None):
 
             print("<<<<>>>>")
 
-
-
             try:
                 req = requests.get("%s/s/%s/stat/device" % (url, site.get("name")),
-                                   headers={'Cookie':cookies},
+                                   headers={'Cookie': cookies},
                                    timeout=10,
                                    verify=not args.no_cert_check)
                 req.raise_for_status()
                 data = req.json().get('data')
 
                 req = requests.get("%s/s/%s/stat/sta" % (url, site.get("name")),
-                                   headers={'Cookie':cookies},
+                                   headers={'Cookie': cookies},
                                    timeout=10,
                                    verify=not args.no_cert_check)
                 req.raise_for_status()
                 user_data = req.json().get('data')
-            except requests.exceptions.ConnectionError:
+            except requests.exceptions.ConnectionError as e:
                 sys.stderr.write('Network connection failed: %s\n' % e)
-            except requests.exceptions.Timeout:
+            except requests.exceptions.Timeout as e:
                 sys.stderr.write('Connection timeout: %s\n' % e)
-            except requests.exceptions.RequestException as e:
-                sys.stderr.write('Request-Error: %s\n' % e)
             except requests.exceptions.HTTPError as e:
                 sys.stderr.write('HTTP-Error: %s\n' % e)
+            except requests.exceptions.RequestException as e:
+                sys.stderr.write('Request-Error: %s\n' % e)
             except (requests.exceptions.InvalidJSONError, TypeError) as e:
                 sys.stderr.write('Invalid JSON Error: %s\n' % e)
             except Exception as e:
@@ -231,10 +224,10 @@ def main(argv=None):
                 users = {}
                 for device in data:
                     device_mac = device.get('mac')
-                    users[device_mac]=[]
+                    users[device_mac] = []
                     for user in user_data:
-                        if device_mac==user.get('sw_mac') or device_mac==user.get('ap_mac'):
-                           users[device_mac].append(user)
+                        if device_mac == user.get('sw_mac') or device_mac == user.get('ap_mac'):
+                            users[device_mac].append(user)
 
                 for device in data:
                     print("<<<<%s>>>>" % device.get('name'))
@@ -243,7 +236,7 @@ def main(argv=None):
                     sys.stdout.write("%s\n" % json.dumps(device.get('port_table'), separators=(',', ':')))
 
                     print("<<<unifi_device:sep(0)>>>")
-                    #del device['port_table']
+                    # del device['port_table']
                     sys.stdout.write("%s\n" % json.dumps(device, separators=(',', ':')))
 
                     print("<<<unifi_device_users:sep(0)>>>")

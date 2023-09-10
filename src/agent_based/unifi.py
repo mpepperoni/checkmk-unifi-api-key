@@ -13,28 +13,22 @@
 # Author: Frank Baier
 # E-Mail: dev@baier-nt.de
 #
-from datetime import date
-from datetime import datetime
-from dateutil.parser import parse
-from cmk.base.check_api import set_item_state, get_item_state
-from .agent_based_api.v1.type_defs import HostLabelGenerator
-from .agent_based_api.v1 import HostLabel
-from .agent_based_api.v1 import *
-from .utils import if64, interfaces
-import pprint
+from cmk.base.plugins.agent_based.agent_based_api.v1 import (
+    HostLabel,
+    register,
+    Result,
+    Service,
+    State,
+    type_defs,
+)
+from cmk.base.plugins.agent_based.utils import if64, interfaces
+from cmk.base.plugins.agent_based.agent_based_api.v1.type_defs import HostLabelGenerator
+from typing import (
+    Dict,
+)
 import json
 
-from typing import (
-    Any,
-    Dict,
-    Mapping,
-    MutableMapping,
-    Optional,
-    Sequence,
-    Tuple,
-)
-
-UNIFI_DEVICE_TABLE = {
+UNIFI_DEVICE_TABLE: dict[str, str] = {
     'BZ2'       : 'UAP',
     'BZ2LR'     : 'UAP-LR',
     'U2HSR'     : 'UAP-Outdoor+',
@@ -150,12 +144,6 @@ UNIFI_DEVICE_TABLE = {
     'UXGPRO'    : 'UniFi NeXt-Gen Gateway PRO'
 }
 
-UNIFI_DEVICE_STATES = {
-    "0" : "disconnected",
-    "1" : "connected",
-    "2" : "pending"
-}
-
 
 def host_labels(section: Dict) -> HostLabelGenerator:
     devtype = section.get("type")
@@ -168,7 +156,7 @@ def host_labels(section: Dict) -> HostLabelGenerator:
 
 def parse_unifi(string_table):
     """
-    :param info: dictionary with all data for all checks and subchecks
+    :param string_table: dictionary with all data for all checks and subchecks
     :return:
     """
     if string_table:
@@ -177,48 +165,46 @@ def parse_unifi(string_table):
 
 
 register.agent_section(
-    name = "unifi_device_users",
+    name="unifi_device_users",
     parse_function=parse_unifi,
 )
-
-
 
 
 def discover_unifi_controller_sites(section):
     for site in section:
         yield Service(item=site.get('desc'))
         for data in site.get('health'):
-            if data.get('status')!='unknown':
+            if data.get('status') != 'unknown':
                 yield Service(item=f"%s_%s" % (site.get('desc'), data.get('subsystem')))
 
 
 def check_unifi_controller_sites(item, section):
     for site in section:
-        if item==site.get('desc'):
+        if item == site.get('desc'):
             yield Result(state=State.OK, summary=f"Site description: %s" % site.get('desc'))
             yield Result(state=State.OK, summary=f"Site id: %s" % site.get('name'))
             yield Result(state=State.OK, summary=f"Alarms: %s" % site.get('num_new_alarms'))
 
         for data in site.get('health'):
-            if item==f"%s_%s" % (site.get('desc'), data.get('subsystem')):
+            if item == f"%s_%s" % (site.get('desc'), data.get('subsystem')):
                 yield Result(state=State.OK, summary=f"Status: %s" % data.get('status'))
                 yield Result(state=State.OK, summary=f"adopted Devices: %s" % data.get('num_adopted'))
                 yield Result(state=State.OK, summary=f"pending Devices: %s" % data.get('num_pending'))
                 yield Result(state=State.OK, summary=f"disconnected Devices: %s" % data.get('num_disconnected'))
-                if data.get('num_disabled')!=None:
+                if data.get('num_disabled') is not None:
                     yield Result(state=State.OK, summary=f"disabled Devices: %s" % data.get('num_disabled'))
                 yield Result(state=State.OK, summary=f"Users: %s" % data.get('num_user'))
                 yield Result(state=State.OK, summary=f"Guests: %s" % data.get('num_guest'))
 
 
 register.agent_section(
-    name = "unifi_controller_sites",
+    name="unifi_controller_sites",
     parse_function=parse_unifi,
-    #host_label_function=host_labels,
+    # host_label_function=host_labels,
 )
 
 register.check_plugin(
-    name = "unifi_controller_sites",
+    name="unifi_controller_sites",
     sections=["unifi_controller_sites"],
     service_name="Site %s",
     discovery_function=discover_unifi_controller_sites,
@@ -226,10 +212,8 @@ register.check_plugin(
 )
 
 
-
-
 def discover_unifi_controller(section):
-    '''
+    """
     pprint.pprint(section)
     devtype = section.get("type")
     devtype2 = section.get("ubnt_device_type")
@@ -238,7 +222,7 @@ def discover_unifi_controller(section):
         yield Service()
     elif devtype2:
         yield Service()
-    '''
+    """
     yield Service()
 
 
@@ -247,30 +231,26 @@ def check_unifi_controller(section):
     yield Result(state=State.OK, summary=f"Type: %s" % section.get('ubnt_device_type'))
     yield Result(state=State.OK, summary=f"Build: %s" % section.get('build'))
 
-    if section.get('unsupported_device_count')==0:
+    if section.get('unsupported_device_count') == 0:
         yield Result(state=State.OK, summary=f"Unsupported devices: %s" % section.get('unsupported_device_count'))
     else:
         yield Result(state=State.WARN, summary=f"Unsupported devices: %s" % section.get('unsupported_device_count'))
-        #yield Result(state=State.WARN, notice=f"Unsupported devices:  %s" % section.get('unsupported_device_list'))
+        # yield Result(state=State.WARN, notice=f"Unsupported devices:  %s" % section.get('unsupported_device_list'))
 
 
 register.agent_section(
-    name = "unifi_controller",
+    name="unifi_controller",
     parse_function=parse_unifi,
     host_label_function=host_labels,
 )
 
 register.check_plugin(
-    name = "unifi_controller",
+    name="unifi_controller",
     sections=["unifi_controller"],
     service_name="Unifi Controller",
     discovery_function=discover_unifi_controller,
     check_function=check_unifi_controller,
 )
-
-
-
-
 
 
 def discover_unifi_device(section):
@@ -282,12 +262,11 @@ def discover_unifi_device(section):
 
 
 def check_unifi_device(section):
-    
-    #yield Result(state=State.OK, notice=f"Type: %s" % section.get('type'))
+    # yield Result(state=State.OK, notice=f"Type: %s" % section.get('type'))
     yield Result(state=State.OK, summary=f"Name: %s" % section.get('name'))
     yield Result(state=State.OK, summary=f"%s" % section.get('ip'))
 
-    if section.get('state')==1:
+    if section.get('state') == 1:
         yield Result(state=State.OK, summary=f"State: %s" % section.get('state'))
     else:
         yield Result(state=State.CRIT, summary=f"State: %s" % section.get('state'))
@@ -303,13 +282,13 @@ def check_unifi_device(section):
 
 
 register.agent_section(
-    name = "unifi_device",
+    name="unifi_device",
     parse_function=parse_unifi,
     host_label_function=host_labels,
 )
 
 register.check_plugin(
-    name = "unifi_device",
+    name="unifi_device",
     sections=["unifi_device"],
     service_name="Unifi Device",
     discovery_function=discover_unifi_device,
@@ -317,23 +296,21 @@ register.check_plugin(
 )
 
 
-
-
 def parse_unifi_device_if(string_table: type_defs.StringTable) -> interfaces.Section:
     port_table = parse_unifi(string_table)
 
-    #new_info=[]
+    # new_info=[]
 
-    #for line in port_table:
+    # for line in port_table:
     return [
         interfaces.Interface(
-            #index=str(line.get('port_idx')),
+            # index=str(line.get('port_idx')),
             index=str(line.get('port_idx')) if str(line.get('port_idx')).isdecimal() else str(idx),
             descr=line.get('name'),
             alias=line.get('name'),
             type='6',  # Ethernet
-            #speed=if64.fix_if_64_highspeed(line.get('speed')),
-            speed=line.get('speed', 0)*1000000,
+            # speed=if64.fix_if_64_highspeed(line.get('speed')),
+            speed=line.get('speed', 0) * 1000000,
             oper_status='1' if line.get('up') else '2',
             in_octets=line.get('rx_bytes', 0),
             in_ucast=line.get('rx_bytes', 0),
@@ -353,10 +330,9 @@ def parse_unifi_device_if(string_table: type_defs.StringTable) -> interfaces.Sec
 
 
 register.agent_section(
-    name = "unifi_device_if",
+    name="unifi_device_if",
     parse_function=parse_unifi_device_if,
 )
-
 
 register.check_plugin(
     name="unifi_device_if",
@@ -371,9 +347,6 @@ register.check_plugin(
     check_function=if64.generic_check_if64,
     cluster_check_function=interfaces.cluster_check,
 )
-
-
-
 
 '''
 'poe_caps': 7,
@@ -394,6 +367,8 @@ Class6: 51,00W/60,0W
 Class7: 62,00W/75,0W
 Class8: 71,00W/90,0W
 '''
+
+
 def discovery_unifi_poe(section_unifi_device, section_unifi_device_users):
     poe_port_data = section_unifi_device.get('port_table')
     for port in poe_port_data:
@@ -405,11 +380,11 @@ def check_unifi_poe(item, section_unifi_device, section_unifi_device_users):
     poe_port_data = section_unifi_device.get('port_table')
     for port in poe_port_data:
         if port.get('port_poe', False):
-            if item==str(port.get('port_idx')).zfill(2):
+            if item == str(port.get('port_idx')).zfill(2):
                 yield Result(state=State.OK, summary=f"POE: %s" % port.get('poe_enable'))
                 yield Result(state=State.OK, summary=f"good: %s" % port.get('poe_good'))
                 yield Result(state=State.OK, summary=f"mode: %s" % port.get('poe_mode'))
-                if float(port.get('poe_power', 0))>0:
+                if float(port.get('poe_power', 0)) > 0:
                     yield Result(state=State.OK, summary=f"class: %s" % port.get('poe_class'))
                     if 50 < float(port.get('poe_voltage', 0)) < 57:
                         yield Result(state=State.OK, summary=f"voltage: %sV" % port.get('poe_voltage', 0))
@@ -426,7 +401,6 @@ register.check_plugin(
     discovery_function=discovery_unifi_poe,
     check_function=check_unifi_poe,
 )
-
 
 
 def wifi_type(ssid):
@@ -446,12 +420,12 @@ def discovery_unifi_wifi(section):
 def check_unifi_wifi(item, section):
     wifi_ssid_data = section.get('vap_table')
     for ssid in wifi_ssid_data:
-        if item==f"%s_%s" %(ssid.get('radio_name'), ssid.get('essid')):
+        if item == f"%s_%s" % (ssid.get('radio_name'), ssid.get('essid')):
             yield Result(state=State.OK, summary=f"SSID: %s" % ssid.get('essid'))
             yield Result(state=State.OK, summary=f"State/Up: %s/%s" % (ssid.get('state'), ssid.get('up')))
             yield Result(state=State.OK, summary=f"Usage: %s" % ssid.get('usage'))
             yield Result(state=State.OK, summary=f"Interface: %s" % ssid.get('name'))
-            if int(ssid.get('avg_client_signal'))<0:
+            if int(ssid.get('avg_client_signal')) < 0:
                 yield Result(state=State.OK, summary=f"avgClientSig: %sdBm" % ssid.get('avg_client_signal'))
 
 
@@ -464,8 +438,6 @@ register.check_plugin(
 )
 
 
-
-
 def discovery_unifi_radio(section_unifi_device, section_unifi_device_users):
     radio_data = section_unifi_device.get('radio_table')
     if radio_data:
@@ -476,7 +448,7 @@ def discovery_unifi_radio(section_unifi_device, section_unifi_device_users):
 def check_unifi_radio(item, section_unifi_device, section_unifi_device_users):
     radio_data = section_unifi_device.get('radio_table')
     for idx, radio in enumerate(radio_data):
-        if item==f"%s" % radio.get('name'):
+        if item == f"%s" % radio.get('name'):
             radio_stats = section_unifi_device.get('radio_table_stats')[idx]
             yield Result(state=State.OK, summary=f"State: %s" % radio_stats.get('state'))
             yield Result(state=State.OK, summary=f"Type: %s/%s" % (wifi_type(radio), radio.get('radio')))
@@ -485,7 +457,8 @@ def check_unifi_radio(item, section_unifi_device, section_unifi_device_users):
             if radio.get('antenna_gain'):
                 yield Result(state=State.OK, summary=f"Ant.Gain: %sdBm" % radio.get('antenna_gain'))
             yield Result(state=State.OK, summary=f"curr.AntGain: %sdBm" % radio.get('current_antenna_gain'))
-            yield Result(state=State.OK, summary=f"Users/Guests: %s/%s" % (radio_stats.get('user-num_sta'), radio_stats.get('guest-num_sta')))
+            yield Result(state=State.OK, summary=f"Users/Guests: %s/%s" % (
+                radio_stats.get('user-num_sta'), radio_stats.get('guest-num_sta')))
 
 
 register.check_plugin(
@@ -495,4 +468,3 @@ register.check_plugin(
     discovery_function=discovery_unifi_radio,
     check_function=check_unifi_radio,
 )
-
