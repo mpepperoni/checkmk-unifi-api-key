@@ -35,13 +35,17 @@ def _special_agents_unifi_transform(v):
     v.setdefault("verify_cert", False)
     v.setdefault("port", 8443)
     v.setdefault("sites", ["all"])
+    v.setdefault("use_hostname", False)
+    v.setdefault("device_piggyback", False)
+    v.setdefault("user_piggyback", False)
+    v.setdefault("user_piggyback_name", "ip")
     return v
 
 
 def _valuespec_special_agents_unifi():
     return Transform(
         Dictionary(
-            title=_("Unifi Controller1"),
+            title=_("Unifi Controller"),
             elements=[
                 ("user", TextAscii(
                     title=_("Username"),
@@ -56,7 +60,7 @@ def _valuespec_special_agents_unifi():
                      title=_('TCP port number'),
                      help=_('Port number that the Unifi Controller is listening on. The default is 8443.'
                             'The new Controller generation (G2) uses 443.'),
-                     default_value=8443,
+                     default_value=443,
                      minvalue=1,
                      maxvalue=65535,
                  )),
@@ -77,8 +81,8 @@ def _valuespec_special_agents_unifi():
                 ("use_hostname",
                  Checkbox(
                      title=_("Use hostname"),
-                     label=_("Use hostname instead of IP for check execution. If a special hostname is set "
-                             "this will be overwritten."),
+                     label=_("Use hostname instead of IP for check execution."
+                             "If a special hostname is set this will be overwritten."),
                      default_value=False,
                      true_label=_("use hostname"),
                      false_label=_("use IP"),
@@ -88,12 +92,46 @@ def _valuespec_special_agents_unifi():
                      title=_("Sites to query"),
                      help=_("Use this option to set which sites should be checked by the special agent."
                             "If this is disabled only overall information is given."
-                            "If you enabled it and set \"all\", all sites are given"),
+                            "If you enabled it and set \"all\", all sites are given"
+                            "This will send piggyback data in the name of a Unifi site."),
+                     default_value='all',
                      size=32,
                      allow_empty=True,
                  )),
+                ("device_piggyback",
+                 Checkbox(
+                     title=_("Create Unifi Devices."),
+                     label=_("Create Unifi Devices via piggyback data. Sites must be queried."),
+                     default_value=False,
+                     true_label=_("create CheckMK hosts for clients"),
+                     false_label=_("do not create CheckMK hosts for clients"),
+                 )),
+                ("user_piggyback",
+                 DropdownChoice(
+                     title=_("User/Client Device creation"),
+                     default_value=False,
+                     choices=[
+                         (False, _("deactivated")),
+                         ("create_user",
+                          _('Create CheckMK host per User (multiple detailed services per client/user host)')),
+                         ("create_user_site", _('Create Users in Unifi Site Host (One Service per Host))')),
+                     ],
+                 )),
+                ("user_piggyback_name",
+                 DropdownChoice(
+                     title=_("User/Client Name-Schema"),
+                     default_value="ip",
+                     choices=[
+                         ("mac", _('using MAC-Address')),
+                         ("name", _('using Unifi name')),
+                         ("hostname", _('using detected hostname')),
+                         ("note", _('using Unifi note')),
+                         ("ip", _('using IP-Adress (Should be fixed in best case.)')),
+                         ("user_id", _('using Unifi internal UserID')),
+                     ],
+                 )),
             ],
-            optional_keys=["sites", 'controller'],
+            optional_keys=["sites", 'controller', 'device_piggyback', 'user_piggyback', 'user_piggyback_name'],
         ),
         forth=_special_agents_unifi_transform,
     )

@@ -30,9 +30,14 @@ def parse_arguments(argv):
     parser.add_argument('-P', '--port', required=True, help="Port for connection to Unifi controller")
     parser.add_argument('-S', '--sites', nargs="+", required=False, default=[],
                         help="Sites to Discover. Use the keyword \"all\" for all sites.")
-
-    parser.add_argument('--no-cert-check',
-                        action='store_true',
+    parser.add_argument('--device_piggyback', action='store_true',
+                        help="Enable creation of devices with piggiback data")
+    parser.add_argument('--user_piggyback', required=False, default=False,
+                        help="Enable creation of dynamic Unifi Users (create_user :create piggyback host,"
+                             "create_user_site: create user in site host/context)")
+    parser.add_argument('--user_piggyback_name', required=False, default=False,
+                        help="Name of the dynmaic Unifi Users (mac, hostname, note, user_id)")
+    parser.add_argument('--no-cert-check', action='store_true',
                         help="Disable verification of the servers ssl certificate")
     parser.add_argument('host', help="Host name or IP address of the Unifi controller")
     args = parser.parse_args(argv)
@@ -91,63 +96,12 @@ def main(argv=None):
             cookies = req.headers["Set-Cookie"]
         except Exception:
             raise Exception("No session key received")
-
-    # Get the requested data. We put every needed value into an extra section
-    # to get better performance in the checkplugin if less data is needed.
-    try:
-        req = requests.get("%s/s/default/stat/sysinfo" % url,
-                           headers={'Cookie': cookies},
-                           timeout=10,
-                           verify=not args.no_cert_check)
-        req.raise_for_status()
-        data = req.json().get('data')[0]
-    except requests.exceptions.ConnectionError as e:
-        sys.stderr.write('Network connection failed: %s\n' % e)
-    except requests.exceptions.Timeout as e:
-        sys.stderr.write('Connection timeout: %s\n' % e)
-    except requests.exceptions.HTTPError as e:
-        sys.stderr.write('HTTP-Error: %s\n' % e)
-    except requests.exceptions.RequestException as e:
-        sys.stderr.write('Request-Error: %s\n' % e)
-    except (requests.exceptions.InvalidJSONError, TypeError) as e:
-        sys.stderr.write('Invalid JSON Error: %s\n' % e)
-    except Exception as e:
-        sys.stderr.write("Data-Error: %s\n" % e)
-    else:
-        print("<<<unifi_controller:sep(0)>>>")
-        sys.stdout.write("%s\n" % json.dumps(data, separators=(',', ':')))
-
-    try:
-        req = requests.get("%s/stat/sites" % url,
-                           headers={'Cookie': cookies},
-                           timeout=10,
-                           verify=not args.no_cert_check)
-        req.raise_for_status()
-        sites = req.json().get('data')
-    except requests.exceptions.ConnectionError as e:
-        sys.stderr.write('Network connection failed: %s\n' % e)
-    except requests.exceptions.Timeout as e:
-        sys.stderr.write('Connection timeout: %s\n' % e)
-    except requests.exceptions.HTTPError as e:
-        sys.stderr.write('HTTP-Error: %s\n' % e)
-    except requests.exceptions.RequestException as e:
-        sys.stderr.write('Request-Error: %s\n' % e)
-    except (requests.exceptions.InvalidJSONError, TypeError) as e:
-        sys.stderr.write('Invalid JSON Error: %s\n' % e)
-    except Exception as e:
-        sys.stderr.write("Data-Error: %s\n" % e)
-    else:
-        print("<<<unifi_controller_sites:sep(0)>>>")
-        sys.stdout.write("%s\n" % json.dumps(sites, separators=(',', ':')))
-
-    for site in sites:
-        if (site.get("desc") in args.sites) or (len(args.sites) == 1 and args.sites[0] == "all"):
-            print("<<<<%s>>>>" % site.get('desc'))
+        else:
 
             # Get the requested data. We put every needed value into an extra section
             # to get better performance in the checkplugin if less data is needed.
             try:
-                req = requests.get("%s/s/%s/stat/sysinfo" % (url, site.get("name")),
+                req = requests.get("%s/s/default/stat/sysinfo" % url,
                                    headers={'Cookie': cookies},
                                    timeout=10,
                                    verify=not args.no_cert_check)
@@ -166,16 +120,16 @@ def main(argv=None):
             except Exception as e:
                 sys.stderr.write("Data-Error: %s\n" % e)
             else:
-                print("<<<unifi_site_controller:sep(0)>>>")
+                print("<<<unifi_controller:sep(0)>>>")
                 sys.stdout.write("%s\n" % json.dumps(data, separators=(',', ':')))
 
             try:
-                req = requests.get("%s/s/%s/stat/health" % (url, site.get("name")),
+                req = requests.get("%s/stat/sites" % url,
                                    headers={'Cookie': cookies},
                                    timeout=10,
                                    verify=not args.no_cert_check)
                 req.raise_for_status()
-                data = req.json().get('data')[0]
+                sites = req.json().get('data')
             except requests.exceptions.ConnectionError as e:
                 sys.stderr.write('Network connection failed: %s\n' % e)
             except requests.exceptions.Timeout as e:
@@ -189,60 +143,143 @@ def main(argv=None):
             except Exception as e:
                 sys.stderr.write("Data-Error: %s\n" % e)
             else:
-                print("<<<unifi_site_controller_health:sep(0)>>>")
-                sys.stdout.write("%s\n" % json.dumps(data, separators=(',', ':')))
+                print("<<<unifi_controller_sites:sep(0)>>>")
+                sys.stdout.write("%s\n" % json.dumps(sites, separators=(',', ':')))
 
-            print("<<<<>>>>")
+                for site in sites:
+                    if (site.get("desc") in args.sites) or (len(args.sites) == 1 and args.sites[0] == "all"):
 
-            try:
-                req = requests.get("%s/s/%s/stat/device" % (url, site.get("name")),
-                                   headers={'Cookie': cookies},
-                                   timeout=10,
-                                   verify=not args.no_cert_check)
-                req.raise_for_status()
-                data = req.json().get('data')
+                        try:
+                            req = requests.get("%s/s/%s/stat/device" % (url, site.get("name")),
+                                               headers={'Cookie': cookies},
+                                               timeout=15,
+                                               verify=not args.no_cert_check)
+                            req.raise_for_status()
+                            device_data = json.loads(req.text).get('data')
 
-                req = requests.get("%s/s/%s/stat/sta" % (url, site.get("name")),
-                                   headers={'Cookie': cookies},
-                                   timeout=10,
-                                   verify=not args.no_cert_check)
-                req.raise_for_status()
-                user_data = req.json().get('data')
-            except requests.exceptions.ConnectionError as e:
-                sys.stderr.write('Network connection failed: %s\n' % e)
-            except requests.exceptions.Timeout as e:
-                sys.stderr.write('Connection timeout: %s\n' % e)
-            except requests.exceptions.HTTPError as e:
-                sys.stderr.write('HTTP-Error: %s\n' % e)
-            except requests.exceptions.RequestException as e:
-                sys.stderr.write('Request-Error: %s\n' % e)
-            except (requests.exceptions.InvalidJSONError, TypeError) as e:
-                sys.stderr.write('Invalid JSON Error: %s\n' % e)
-            except Exception as e:
-                sys.stderr.write("Data-Error: %s\n" % e)
-            else:
-                users = {}
-                for device in data:
-                    device_mac = device.get('mac')
-                    users[device_mac] = []
-                    for user in user_data:
-                        if device_mac == user.get('sw_mac') or device_mac == user.get('ap_mac'):
-                            users[device_mac].append(user)
+                            req = requests.get("%s/s/%s/stat/sta" % (url, site.get("name")),
+                                               headers={'Cookie': cookies},
+                                               timeout=15,
+                                               verify=not args.no_cert_check)
+                            req.raise_for_status()
+                            user_data = json.loads(req.text).get('data')
+                        except requests.exceptions.ConnectionError as e:
+                            sys.stderr.write('Network connection failed: %s\n' % e)
+                        except requests.exceptions.Timeout as e:
+                            sys.stderr.write('Connection timeout: %s\n' % e)
+                        except requests.exceptions.HTTPError as e:
+                            sys.stderr.write('HTTP-Error: %s\n' % e)
+                        except requests.exceptions.RequestException as e:
+                            sys.stderr.write('Request-Error: %s\n' % e)
+                        except (requests.exceptions.InvalidJSONError, TypeError) as e:
+                            sys.stderr.write('Invalid JSON Error: %s\n' % e)
+                        except Exception as e:
+                            sys.stderr.write("Data-Error: %s\n" % e)
+                        else:
+                            if args.device_piggyback:
+                                users = {}
+                                for device in device_data:
+                                    device_mac = device.get('mac')
+                                    users[device_mac] = []
+                                    for user in user_data:
+                                        if device_mac == user.get('sw_mac') or device_mac == user.get('ap_mac'):
+                                            users[device_mac].append(user)
 
-                for device in data:
-                    print("<<<<%s>>>>" % device.get('name'))
+                                for device in device_data:
+                                    print("<<<<%s>>>>" % device.get('name', "%s-%s" % (device.get('model'),
+                                                                                       device.get('serial')[-4:])))
 
-                    print("<<<unifi_device_if:sep(0)>>>")
-                    sys.stdout.write("%s\n" % json.dumps(device.get('port_table'), separators=(',', ':')))
+                                    print("<<<unifi_device_if:sep(0)>>>")
+                                    sys.stdout.write("%s\n" % json.dumps(device.get('port_table'),
+                                                                         separators=(',', ':')))
 
-                    print("<<<unifi_device:sep(0)>>>")
-                    # del device['port_table']
-                    sys.stdout.write("%s\n" % json.dumps(device, separators=(',', ':')))
+                                    print("<<<unifi_device:sep(0)>>>")
+                                    # del device['port_table']
+                                    sys.stdout.write("%s\n" % json.dumps(device, separators=(',', ':')))
 
-                    print("<<<unifi_device_users:sep(0)>>>")
-                    sys.stdout.write("%s\n" % json.dumps(users.get(device.get('mac')), separators=(',', ':')))
+                                    print("<<<unifi_device_users:sep(0)>>>")
+                                    sys.stdout.write("%s\n" % json.dumps(users.get(device.get('mac')),
+                                                                         separators=(',', ':')))
 
-                    print("<<<<>>>>")
+                                    print("<<<<>>>>")
+
+                        print("<<<<%s>>>>" % site.get('desc'))
+
+                        # Get the requested data. We put every needed value into an extra section
+                        # to get better performance in the checkplugin if less data is needed.
+                        print("<<<unifi_controller:sep(0)>>>")
+                        try:
+                            req = requests.get("%s/s/%s/stat/sysinfo" % (url, site.get("name")),
+                                               headers={'Cookie': cookies},
+                                               timeout=15,
+                                               verify=not args.no_cert_check)
+                            req.raise_for_status()
+                            data = json.loads(req.text).get('data')[0]
+                        except requests.exceptions.ConnectionError as e:
+                            sys.stderr.write('Network connection failed: %s\n' % e)
+                        except requests.exceptions.Timeout as e:
+                            sys.stderr.write('Connection timeout: %s\n' % e)
+                        except requests.exceptions.HTTPError as e:
+                            sys.stderr.write('HTTP-Error: %s\n' % e)
+                        except requests.exceptions.RequestException as e:
+                            sys.stderr.write('Request-Error: %s\n' % e)
+                        except (requests.exceptions.InvalidJSONError, TypeError) as e:
+                            sys.stderr.write('Invalid JSON Error: %s\n' % e)
+                        except Exception as e:
+                            sys.stderr.write("Data-Error: %s\n" % e)
+                        else:
+                            sys.stdout.write("%s\n" % json.dumps(data, separators=(',', ':')))
+
+                        print("<<<unifi_site_controller_health:sep(0)>>>")
+                        try:
+                            req = requests.get("%s/s/%s/stat/health" % (url, site.get("name")),
+                                               headers={'Cookie': cookies},
+                                               timeout=10,
+                                               verify=not args.no_cert_check)
+                            req.raise_for_status()
+                            data = json.loads(req.text).get('data')
+                        except requests.exceptions.ConnectionError as e:
+                            sys.stderr.write('Network connection failed: %s\n' % e)
+                        except requests.exceptions.Timeout as e:
+                            sys.stderr.write('Connection timeout: %s\n' % e)
+                        except requests.exceptions.HTTPError as e:
+                            sys.stderr.write('HTTP-Error: %s\n' % e)
+                        except requests.exceptions.RequestException as e:
+                            sys.stderr.write('Request-Error: %s\n' % e)
+                        except (requests.exceptions.InvalidJSONError, TypeError) as e:
+                            sys.stderr.write('Invalid JSON Error: %s\n' % e)
+                        except Exception as e:
+                            sys.stderr.write("Data-Error: %s\n" % e)
+                        else:
+                            sys.stdout.write("%s\n" % json.dumps(data, separators=(',', ':')))
+
+                        if args.user_piggyback == 'create_user_site':
+                            print("<<<unifi_user:sep(0)>>>")
+                            for user in user_data:
+                                if site.get('site_id') == user.get('site_id'):
+                                    for device in device_data:
+                                        if (user.get('sw_mac') == device.get('mac') or
+                                                user.get('ap_mac') == device.get('mac')):
+                                            user['uplink_name'] = device.get('name')
+                                    sys.stdout.write("%s\n" % json.dumps(user, separators=(',', ':')))
+
+                        print("<<<<>>>>")
+
+                        if args.user_piggyback == 'create_user':
+                            if not args.user_piggyback_name:
+                                user_piggyback_name = 'user_id'
+                            else:
+                                user_piggyback_name = args.user_piggyback_name
+                            for user in user_data:
+                                if site.get('_id') == user.get('site_id'):
+                                    for device in device_data:
+                                        if (user.get('sw_mac') == device.get('mac') or
+                                                user.get('ap_mac') == device.get('mac')):
+                                            user['uplink_name'] = device.get('name')
+                                    print("<<<<%s>>>>" % user.get(user_piggyback_name))
+                                    print("<<<unifi_user:sep(0)>>>")
+                                    sys.stdout.write("%s\n" % json.dumps(user, separators=(',', ':')))
+                                    print("<<<<>>>>")
 
 
 if __name__ == '__main__':
