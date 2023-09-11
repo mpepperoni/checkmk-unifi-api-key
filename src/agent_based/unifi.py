@@ -689,9 +689,7 @@ register.check_plugin(
 
 # ***************************** UNIFI WIFI INTERFACE (Piggyback) *****************************
 
-def discovery_unifi_wifi(
-        section_unifi_device: Optional[Section],
-        section_unifi_device_users: Optional[Section],
+def discovery_unifi_wifi(section_unifi_device, section_unifi_device_users
 ) -> type_defs.DiscoveryResult:
     wifi_ssid_data = section_unifi_device.get('vap_table')
     if wifi_ssid_data:
@@ -699,10 +697,7 @@ def discovery_unifi_wifi(
             yield Service(item=f"%s_%s" % (ssid.get('radio_name'), ssid.get('essid')))
 
 
-def check_unifi_wifi(
-        item: str,
-        section_unifi_device: Optional[Section],
-        section_unifi_device_users: Optional[Section],
+def check_unifi_wifi(item, section_unifi_device, section_unifi_device_users
 ) -> type_defs.CheckResult:
     wifi_ssid_data = section_unifi_device.get('vap_table', [])
     for ssid in wifi_ssid_data:
@@ -753,9 +748,7 @@ def wifi_type(ssid):
         return "5G"
 
 
-def discovery_unifi_radio(
-        section_unifi_device: Optional[Section],
-        section_unifi_device_users: Optional[Section],
+def discovery_unifi_radio(section_unifi_device, section_unifi_device_users
 ) -> type_defs.DiscoveryResult:
     radio_data = section_unifi_device.get('radio_table')
     if radio_data:
@@ -763,10 +756,7 @@ def discovery_unifi_radio(
             yield Service(item=f"%s" % radio.get('name'))
 
 
-def check_unifi_radio(
-        item: str,
-        section_unifi_device: Optional[Section],
-        section_unifi_device_users: Optional[Section],
+def check_unifi_radio(item, section_unifi_device, section_unifi_device_users
 ) -> type_defs.CheckResult:
     radio_data = section_unifi_device.get('radio_table')
     for idx, radio in enumerate(radio_data):
@@ -813,7 +803,7 @@ register.agent_section(
 
 register.check_plugin(
     name="unifi_device_radio",
-    sections=[Optional["unifi_device"], Optional["unifi_device_users"]],
+    sections=["unifi_device", "unifi_device_users"],
     service_name="Unifi Radio %s",
     discovery_function=discovery_unifi_radio,
     check_function=check_unifi_radio,
@@ -823,6 +813,7 @@ register.check_plugin(
 # ***************************** UNIFI User (Piggyback) *****************************
 
 def discover_unifi_user(
+        params: Mapping[str, Any],
         section: Section,
 ) -> type_defs.DiscoveryResult:
     yield Service(item=f"Info")
