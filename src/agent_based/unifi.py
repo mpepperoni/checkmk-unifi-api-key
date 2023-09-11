@@ -194,8 +194,8 @@ def parse_unifi(
     :return:
     """
     if string_table:
-        return json.loads(str(string_table[0][0]))
-    return dict()
+        return Section(**json.loads(str(string_table[0][0])))
+    return Section(None)
 
 
 # ***************************** UNIFI SITES *****************************
