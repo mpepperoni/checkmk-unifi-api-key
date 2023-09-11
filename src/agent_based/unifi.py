@@ -44,7 +44,7 @@ from typing import (
     List,
     Mapping,
     Optional,
-    Sequence, 
+    Sequence,
     Union,
 )
 import json
@@ -417,7 +417,7 @@ register.agent_section(
 register.check_plugin(
     name="unifi_device",
     sections=["unifi_device"],
-    service_name="Unifi Device %s",
+    service_name="Unifi %s",
     discovery_function=discover_unifi_device,
     check_function=check_unifi_device,
 )
@@ -783,7 +783,7 @@ def wifi_type(ssid):
 
 
 def discovery_unifi_radio(
-        section_unifi_device, 
+        section_unifi_device,
         section_unifi_device_users,
 ) -> DiscoveryResult:
     radio_data = section_unifi_device.get('radio_table')
