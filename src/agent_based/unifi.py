@@ -184,12 +184,15 @@ def _safe_int(val, default=0):
 def host_labels(
         section: Section
 ) -> HostLabelGenerator:
-    devtype = section.get("type")
-    devtype2 = section.get("ubnt_device_type")
-    if devtype:
-        yield HostLabel(u'unifi_device_type', devtype)
-    elif devtype2:
-        yield HostLabel(u'unifi_device_type', devtype2)
+    device_type = section.get("type")
+    device_type2 = section.get("ubnt_device_type")
+    if device_type:
+        yield HostLabel(u'unifi_device_type', device_type)
+    elif device_type2:
+        yield HostLabel(u'unifi_device_type', device_type2)
+
+    yield HostLabel(u'unifi_device_model',
+                    UNIFI_DEVICE_TABLE.get(section.get('model'), section.get('model', 'unknown')))
 
 
 def parse_unifi(string_table) -> Section:
