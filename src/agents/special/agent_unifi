@@ -16,7 +16,6 @@
 import argparse
 import json
 import sys
-
 import requests
 import urllib3  # type: ignore[import]
 
@@ -28,7 +27,7 @@ def parse_arguments(argv):
     parser.add_argument('-u', '--user', required=True, help="Username for Unifi controller login")
     parser.add_argument('-p', '--password', required=True, help="Password for Unifi controller login")
     parser.add_argument('-P', '--port', required=True, help="Port for connection to Unifi controller")
-    parser.add_argument('--udm_pro', required=False, default=False, 
+    parser.add_argument('--udm_pro', required=False, default=False,
                         help="Switches to UDM-Pro API endpoints")
     parser.add_argument('-S', '--sites', nargs="+", required=False, default=[],
                         help="Sites to Discover. Use the keyword \"all\" for all sites.")
@@ -52,15 +51,13 @@ def main(argv=None):
         argv = sys.argv[1:]
     args = parse_arguments(argv)
 
-
-    urlBase = "https://%s:%s" % (args.host, args.port)
+    url_base = "https://%s:%s" % (args.host, args.port)
     if args.udm_pro:
-        urlLogin = "%s/api/auth/login" % urlBase
-        urlApi = "%s/proxy/network/api" % urlBase
+        url_login = "%s/api/auth/login" % url_base
+        url_api = "%s/proxy/network/api" % url_base
     else:
-        urlLogin = "%s/api/login" % urlBase
-        urlApi = "%s/api" % urlBase
-
+        url_login = "%s/api/login" % url_base
+        url_api = "%s/api" % url_base
 
     if args.no_cert_check:
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -74,7 +71,7 @@ def main(argv=None):
 
     # Initial Connection & get Session Key (Login)
     try:
-        req = requests.post("%s/login" % urlLogin,
+        req = requests.post(url_login,
                             json={
                                 'username': args.user,
                                 'password': args.password
@@ -111,7 +108,7 @@ def main(argv=None):
             # Get the requested data. We put every needed value into an extra section
             # to get better performance in the checkplugin if less data is needed.
             try:
-                req = requests.get("%s/s/default/stat/sysinfo" % urlApi,
+                req = requests.get("%s/s/default/stat/sysinfo" % url_api,
                                    headers={'Cookie': cookies},
                                    timeout=10,
                                    verify=not args.no_cert_check)
@@ -134,7 +131,7 @@ def main(argv=None):
                 sys.stdout.write("%s\n" % json.dumps(data, separators=(',', ':')))
 
             try:
-                req = requests.get("%s/stat/sites" % urlApi,
+                req = requests.get("%s/stat/sites" % url_api,
                                    headers={'Cookie': cookies},
                                    timeout=10,
                                    verify=not args.no_cert_check)
@@ -160,14 +157,14 @@ def main(argv=None):
                     if (site.get("desc") in args.sites) or (len(args.sites) == 1 and args.sites[0] == "all"):
 
                         try:
-                            req = requests.get("%s/s/%s/stat/device" % (urlApi, site.get("name")),
+                            req = requests.get("%s/s/%s/stat/device" % (url_api, site.get("name")),
                                                headers={'Cookie': cookies},
                                                timeout=15,
                                                verify=not args.no_cert_check)
                             req.raise_for_status()
                             device_data = json.loads(req.text).get('data')
 
-                            req = requests.get("%s/s/%s/stat/sta" % (urlApi, site.get("name")),
+                            req = requests.get("%s/s/%s/stat/sta" % (url_api, site.get("name")),
                                                headers={'Cookie': cookies},
                                                timeout=15,
                                                verify=not args.no_cert_check)
@@ -219,7 +216,7 @@ def main(argv=None):
                         # to get better performance in the checkplugin if less data is needed.
                         print("<<<unifi_controller:sep(0)>>>")
                         try:
-                            req = requests.get("%s/s/%s/stat/sysinfo" % (urlApi, site.get("name")),
+                            req = requests.get("%s/s/%s/stat/sysinfo" % (url_api, site.get("name")),
                                                headers={'Cookie': cookies},
                                                timeout=15,
                                                verify=not args.no_cert_check)
@@ -242,7 +239,7 @@ def main(argv=None):
 
                         print("<<<unifi_site_controller_health:sep(0)>>>")
                         try:
-                            req = requests.get("%s/s/%s/stat/health" % (urlApi, site.get("name")),
+                            req = requests.get("%s/s/%s/stat/health" % (url_api, site.get("name")),
                                                headers={'Cookie': cookies},
                                                timeout=10,
                                                verify=not args.no_cert_check)
