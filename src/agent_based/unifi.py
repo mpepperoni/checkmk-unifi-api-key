@@ -14,6 +14,7 @@
 # E-Mail: dev@baier-nt.de
 #
 from __future__ import annotations
+
 from cmk.gui.i18n import _
 from dataclasses import dataclass
 from cmk.base.api.agent_based.inventory_classes import TableRow
@@ -21,6 +22,7 @@ from cmk.base.plugins.agent_based.agent_based_api.v1 import (
     Attributes,
     check_levels,
     HostLabel,
+    Metric,
     register,
     Result,
     Service,
@@ -31,18 +33,15 @@ from cmk.base.plugins.agent_based.agent_based_api.v1.type_defs import (
     HostLabelGenerator,
     DiscoveryResult,
     CheckResult,
-    StringTable,
 )
-from cmk.base.plugins.agent_based.agent_based_api.v1 import (
-    Metric
-)
+from cmk.base.api.agent_based.type_defs import StringTable
 from typing import (
     Any,
     Dict,
     List,
     Mapping,
     Optional,
-    Sequence, 
+    Sequence,
 )
 import json
 
@@ -188,7 +187,7 @@ def host_labels(section: Dict) -> HostLabelGenerator:
         yield HostLabel(u'unifi_device_type', devtype2)
 
 
-def parse_unifi(        
+def parse_unifi(
         string_table: StringTable,
 ) -> Dict | None:
     """
