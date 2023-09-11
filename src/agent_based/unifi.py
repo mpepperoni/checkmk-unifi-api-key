@@ -183,7 +183,9 @@ def host_labels(section: Dict) -> type_defs.HostLabelGenerator:
 
 def parse_unifi(string_table) -> Section:
     if string_table:
-        return Section(**json.loads(str(string_table[0][0])))
+        data = Section(json.loads(string_table[0][0]))
+        assert isinstance(Section, dict)
+        return data
     return Section(None)
 
 
@@ -542,7 +544,6 @@ register.check_plugin(
     check_function=check_unifi_network_port_if,
 )
 
-
 # ***************************** UNIFI INTERFACE POE (Piggyback) *****************************
 
 '''
@@ -690,7 +691,7 @@ register.check_plugin(
 # ***************************** UNIFI WIFI INTERFACE (Piggyback) *****************************
 
 def discovery_unifi_wifi(section_unifi_device, section_unifi_device_users
-) -> type_defs.DiscoveryResult:
+                         ) -> type_defs.DiscoveryResult:
     wifi_ssid_data = section_unifi_device.get('vap_table')
     if wifi_ssid_data:
         for ssid in wifi_ssid_data:
@@ -698,7 +699,7 @@ def discovery_unifi_wifi(section_unifi_device, section_unifi_device_users
 
 
 def check_unifi_wifi(item, section_unifi_device, section_unifi_device_users
-) -> type_defs.CheckResult:
+                     ) -> type_defs.CheckResult:
     wifi_ssid_data = section_unifi_device.get('vap_table', [])
     for ssid in wifi_ssid_data:
         if item == f"%s_%s" % (ssid.get('radio_name'), ssid.get('essid')):
@@ -749,7 +750,7 @@ def wifi_type(ssid):
 
 
 def discovery_unifi_radio(section_unifi_device, section_unifi_device_users
-) -> type_defs.DiscoveryResult:
+                          ) -> type_defs.DiscoveryResult:
     radio_data = section_unifi_device.get('radio_table')
     if radio_data:
         for radio in radio_data:
@@ -757,7 +758,7 @@ def discovery_unifi_radio(section_unifi_device, section_unifi_device_users
 
 
 def check_unifi_radio(item, section_unifi_device, section_unifi_device_users
-) -> type_defs.CheckResult:
+                      ) -> type_defs.CheckResult:
     radio_data = section_unifi_device.get('radio_table')
     for idx, radio in enumerate(radio_data):
         if item == f"%s" % radio.get('name'):
@@ -850,8 +851,8 @@ def check_unifi_user(
             yield Result(state=State.OK, notice=f"Signal: %sdBm" % int(section.get('signal', 0)))
             yield Result(state=State.OK, notice=f"Noise: %sdBm" % int(section.get('noise', 0)))
             yield Result(state=State.OK, notice=f"RSSI: %sdBm" % int(section.get('rssi', 0)))
-            yield Result(state=State.OK, notice=f"RX-Rate: %sMbps" % int(section.get('rx_rate')/1000))
-            yield Result(state=State.OK, notice=f"TX-Rate: %sMBps" % int(section.get('tx_rate')/1000))
+            yield Result(state=State.OK, notice=f"RX-Rate: %sMbps" % int(section.get('rx_rate') / 1000))
+            yield Result(state=State.OK, notice=f"TX-Rate: %sMBps" % int(section.get('tx_rate') / 1000))
             yield Metric(name="channel", value=int(section.get('channel', 0)))
             yield Metric(name="signal", value=int(section.get('signal', 0)), boundaries=(-120, 0), levels=(-70, -80))
             yield Metric(name="noise", value=int(section.get('noise', 0)), boundaries=(-120, 0), levels=(-90, -80))
