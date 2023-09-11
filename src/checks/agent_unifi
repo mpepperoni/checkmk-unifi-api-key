@@ -35,6 +35,9 @@ def agent_unifi_arguments(params, hostname, ipaddress):
     if not params.get("verify_cert", False):
         args.append("--no-cert-check")
 
+    if params.get("udm_pro", False):
+        args.append("--udm_pro")
+
     if params.get("device_piggyback", False):
         args.append("--device_piggyback")
 

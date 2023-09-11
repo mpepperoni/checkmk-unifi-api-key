@@ -181,12 +181,12 @@ def host_labels(section: Dict) -> type_defs.HostLabelGenerator:
         yield HostLabel(u'unifi_device_type', devtype2)
 
 
-def parse_unifi(string_table) -> Section:
+def parse_unifi(string_table: type_defs.StringTable) -> Section:
     if string_table:
-        data = Section(json.loads(string_table[0][0]))
-        assert isinstance(Section, dict)
+        data = json.loads(string_table[0][0])
+        assert isinstance(data, dict)
         return data
-    return Section(None)
+    return None
 
 
 # ***************************** UNIFI SITES *****************************
@@ -201,7 +201,10 @@ def discover_unifi_controller_sites(
                 yield Service(item=f"%s %s" % (site.get('desc'), data.get('subsystem')))
 
 
-def check_unifi_controller_sites(item, section):
+def check_unifi_controller_sites(
+        item: str,
+        section: Section,
+) -> type_defs.CheckResult:
     for site in section:
         if item == site.get('desc'):
             yield Result(state=State.OK, summary=f"Site description: %s" % site.get('desc'))
@@ -245,7 +248,9 @@ def discover_unifi_controller(
     yield Service()
 
 
-def check_unifi_controller(section):
+def check_unifi_controller(
+        section: Section,
+) -> type_defs.CheckResult:
     yield Result(state=State.OK, summary=f"Name: %s" % section.get('name'))
     yield Result(state=State.OK, summary=f"Type: %s" % section.get('ubnt_device_type'))
     yield Result(state=State.OK, summary=f"Build: %s" % section.get('build'))
@@ -283,7 +288,10 @@ def discover_unifi_site_controller_health(
             yield Service(item=f"%s" % data.get('subsystem'))
 
 
-def check_unifi_site_controller_health(item, section):
+def check_unifi_site_controller_health(
+        item: str,
+        section: Section,
+) -> type_defs.CheckResult:
     for data in section:
         if item == f"%s" % data.get('subsystem'):
             yield Result(state=State.OK, summary=f"Status: %s" % data.get('status'))
@@ -336,7 +344,10 @@ def discover_unifi_device(
         yield Service(item='Environment')
 
 
-def check_unifi_device(item, section):
+def check_unifi_device(
+        item: str,
+        section: Section,
+) -> type_defs.CheckResult:
     if item == 'Device':
         yield Result(state=State.OK, summary=f"Type: %s" % section.get('type'))
         yield Result(state=State.OK, summary=f"Model: %s" % UNIFI_DEVICE_TABLE.get(section.get('model'),
@@ -582,7 +593,11 @@ def discovery_unifi_poe(
     )
 
 
-def check_unifi_poe(item, params, section):
+def check_unifi_poe(
+        item: str,
+        params: Mapping[str, Any],
+        section: Section,
+) -> type_defs.CheckResult:
     _converted_ifs = _convert_unifi_counters_if(section)
     port = next(filter(
         lambda x: _safe_int(item, -1) == _safe_int(x.index) or item == x.alias or item == "%s %s" % (x.alias, x.index),
@@ -658,7 +673,11 @@ def discovery_unifi_info(
     )
 
 
-def check_unifi_info(item, params, section):
+def check_unifi_info(
+        item: str,
+        params: Mapping[str, Any],
+        section: Section,
+) -> type_defs.CheckResult:
     _converted_ifs = _convert_unifi_counters_if(section)
     port = next(filter(
         lambda x: _safe_int(item, -1) == _safe_int(x.index) or item == x.alias or item == "%s %s" % (x.alias, x.index),

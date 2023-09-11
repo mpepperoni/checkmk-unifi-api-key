@@ -39,6 +39,7 @@ def _special_agents_unifi_transform(v):
     v.setdefault("device_piggyback", False)
     v.setdefault("user_piggyback", False)
     v.setdefault("user_piggyback_name", "ip")
+    v.setdefault("udm_pro", False)
     return v
 
 
@@ -72,6 +73,16 @@ def _valuespec_special_agents_unifi():
                          (True, _("Activate")),
                          (False, _("Deactivate")),
                      ],
+                 )),
+                ("udm_pro",
+                 Checkbox(
+                     title=_("UDM-Pro API"),
+                     default_value=False,
+                     label=_("Using UDMP-Pro API-Endpoints"
+                             "For CloudKey (UCK) or self depoyed installations do not enable!"),
+                     default_value=False,
+                     true_label=_("UDM-Pro API"),
+                     false_label=_("UCK"),
                  )),
                 ("controller", TextAscii(
                     title=_("Controller"),
@@ -131,7 +142,7 @@ def _valuespec_special_agents_unifi():
                      ],
                  )),
             ],
-            optional_keys=["sites", 'controller', 'device_piggyback', 'user_piggyback', 'user_piggyback_name'],
+            optional_keys=["sites", 'controller'],
         ),
         forth=_special_agents_unifi_transform,
     )
