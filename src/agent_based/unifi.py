@@ -31,6 +31,7 @@ from cmk.base.plugins.agent_based.agent_based_api.v1.type_defs import (
     HostLabelGenerator,
     DiscoveryResult,
     CheckResult,
+    StringTable,
 )
 from cmk.base.plugins.agent_based.agent_based_api.v1 import (
     Metric
@@ -188,7 +189,7 @@ def host_labels(section: Dict) -> HostLabelGenerator:
 
 
 def parse_unifi(        
-        string_table: List[List[str]],
+        string_table: StringTable,
 ) -> Dict | None:
     """
     :param string_table: dictionary with all data for all checks and subchecks
