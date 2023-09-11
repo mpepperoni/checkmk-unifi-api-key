@@ -27,8 +27,16 @@ from cmk.base.plugins.agent_based.agent_based_api.v1 import (
     Result,
     Service,
     State,
-    type_defs,
 )
+from cmk.base.plugins.agent_based.agent_based_api.v1.type_defs import (
+    DiscoveryResult,
+    CheckResult,
+    InventoryResult,
+    HostLabelGenerator,
+    StringTable,
+)
+
+
 from cmk.base.plugins.agent_based.utils import if64, interfaces
 from typing import (
     Any,
@@ -36,11 +44,12 @@ from typing import (
     List,
     Mapping,
     Optional,
-    Sequence,
+    Sequence, 
+    Union,
 )
 import json
 
-Section = Optional[Dict]
+Section = Union[Dict, List, None]
 
 UNIFI_DEVICE_STATES = {
     0: "disconnected",
@@ -172,7 +181,9 @@ def _safe_int(val, default=0):
         return default
 
 
-def host_labels(section: Dict) -> type_defs.HostLabelGenerator:
+def host_labels(
+        section: Section
+) -> HostLabelGenerator:
     devtype = section.get("type")
     devtype2 = section.get("ubnt_device_type")
     if devtype:
@@ -184,7 +195,6 @@ def host_labels(section: Dict) -> type_defs.HostLabelGenerator:
 def parse_unifi(string_table) -> Section:
     if string_table:
         data = json.loads(string_table[0][0])
-        assert isinstance(data, dict)
         return data
     return None
 
@@ -193,7 +203,7 @@ def parse_unifi(string_table) -> Section:
 
 def discover_unifi_controller_sites(
         section: Section,
-) -> type_defs.DiscoveryResult:
+) -> DiscoveryResult:
     for site in section:
         yield Service(item=site.get('desc'))
         for data in site.get('health'):
@@ -204,7 +214,7 @@ def discover_unifi_controller_sites(
 def check_unifi_controller_sites(
         item: str,
         section: Section,
-) -> type_defs.CheckResult:
+) -> CheckResult:
     for site in section:
         if item == site.get('desc'):
             yield Result(state=State.OK, summary=f"Site description: %s" % site.get('desc'))
@@ -244,13 +254,13 @@ register.check_plugin(
 
 def discover_unifi_controller(
         section: Section,
-) -> type_defs.DiscoveryResult:
+) -> DiscoveryResult:
     yield Service()
 
 
 def check_unifi_controller(
         section: Section,
-) -> type_defs.CheckResult:
+) -> CheckResult:
     yield Result(state=State.OK, summary=f"Name: %s" % section.get('name'))
     yield Result(state=State.OK, summary=f"Type: %s" % section.get('ubnt_device_type'))
     yield Result(state=State.OK, summary=f"Build: %s" % section.get('build'))
@@ -282,7 +292,7 @@ register.check_plugin(
 
 def discover_unifi_site_controller_health(
         section: Section,
-) -> type_defs.DiscoveryResult:
+) -> DiscoveryResult:
     for data in section:
         if data.get('status') != 'unknown':
             yield Service(item=f"%s" % data.get('subsystem'))
@@ -291,7 +301,7 @@ def discover_unifi_site_controller_health(
 def check_unifi_site_controller_health(
         item: str,
         section: Section,
-) -> type_defs.CheckResult:
+) -> CheckResult:
     for data in section:
         if item == f"%s" % data.get('subsystem'):
             yield Result(state=State.OK, summary=f"Status: %s" % data.get('status'))
@@ -335,7 +345,7 @@ register.check_plugin(
 
 def discover_unifi_device(
         section: Section,
-) -> type_defs.DiscoveryResult:
+) -> DiscoveryResult:
     devtype = section.get("type")
     # name = section.get("name")
     if devtype:
@@ -347,7 +357,7 @@ def discover_unifi_device(
 def check_unifi_device(
         item: str,
         section: Section,
-) -> type_defs.CheckResult:
+) -> CheckResult:
     if item == 'Device':
         yield Result(state=State.OK, summary=f"Type: %s" % section.get('type'))
         yield Result(state=State.OK, summary=f"Model: %s" % UNIFI_DEVICE_TABLE.get(section.get('model'),
@@ -481,7 +491,7 @@ def _convert_unifi_counters_if(section: Section | List) -> interfaces.Section:
 def discovery_unifi_network_port_if(  # fixme parsed_section_name
         params: Sequence[Mapping[str, Any]],
         section: Section,
-) -> type_defs.DiscoveryResult:
+) -> DiscoveryResult:
     yield from interfaces.discover_interfaces(
         params,
         _convert_unifi_counters_if(section),
@@ -492,7 +502,7 @@ def check_unifi_network_port_if(  # fixme parsed_section_name
         item: str,
         params: Mapping[str, Any],
         section: Section,
-) -> type_defs.CheckResult:
+) -> CheckResult:
     _converted_ifs = _convert_unifi_counters_if(section)
     yield from interfaces.check_multiple_interfaces(
         item,
@@ -501,7 +511,9 @@ def check_unifi_network_port_if(  # fixme parsed_section_name
     )
 
 
-def inventory_unifi_network_ports(section):
+def inventory_unifi_network_ports(
+        section: Section
+) -> InventoryResult:
     _total_ethernet_ports = 0
     _available_ethernet_ports = 0
     for idx, _iface in enumerate(section):
@@ -581,7 +593,7 @@ Class8: 71,00W/90,0W
 def discovery_unifi_poe(
         params: Sequence[Mapping[str, Any]],
         section: Section,
-) -> type_defs.DiscoveryResult:
+) -> DiscoveryResult:
     poe_ports = []
     for idx, line in enumerate(section):
         if 'poe_enable' in line:
@@ -597,7 +609,7 @@ def check_unifi_poe(
         item: str,
         params: Mapping[str, Any],
         section: Section,
-) -> type_defs.CheckResult:
+) -> CheckResult:
     _converted_ifs = _convert_unifi_counters_if(section)
     port = next(filter(
         lambda x: _safe_int(item, -1) == _safe_int(x.index) or item == x.alias or item == "%s %s" % (x.alias, x.index),
@@ -666,7 +678,7 @@ register.check_plugin(
 def discovery_unifi_info(
         params: Sequence[Mapping[str, Any]],
         section: Section,
-) -> type_defs.DiscoveryResult:
+) -> DiscoveryResult:
     yield from interfaces.discover_interfaces(
         params,
         _convert_unifi_counters_if(section),
@@ -677,7 +689,7 @@ def check_unifi_info(
         item: str,
         params: Mapping[str, Any],
         section: Section,
-) -> type_defs.CheckResult:
+) -> CheckResult:
     _converted_ifs = _convert_unifi_counters_if(section)
     port = next(filter(
         lambda x: _safe_int(item, -1) == _safe_int(x.index) or item == x.alias or item == "%s %s" % (x.alias, x.index),
@@ -709,8 +721,10 @@ register.check_plugin(
 
 # ***************************** UNIFI WIFI INTERFACE (Piggyback) *****************************
 
-def discovery_unifi_wifi(section_unifi_device, section_unifi_device_users
-                         ) -> type_defs.DiscoveryResult:
+def discovery_unifi_wifi(
+        section_unifi_device,
+        section_unifi_device_users,
+) -> DiscoveryResult:
     wifi_ssid_data = section_unifi_device.get('vap_table')
     if wifi_ssid_data:
         for ssid in wifi_ssid_data:
@@ -718,7 +732,7 @@ def discovery_unifi_wifi(section_unifi_device, section_unifi_device_users
 
 
 def check_unifi_wifi(item, section_unifi_device, section_unifi_device_users
-                     ) -> type_defs.CheckResult:
+                     ) -> CheckResult:
     wifi_ssid_data = section_unifi_device.get('vap_table', [])
     for ssid in wifi_ssid_data:
         if item == f"%s_%s" % (ssid.get('radio_name'), ssid.get('essid')):
@@ -768,8 +782,10 @@ def wifi_type(ssid):
         return "5G"
 
 
-def discovery_unifi_radio(section_unifi_device, section_unifi_device_users
-                          ) -> type_defs.DiscoveryResult:
+def discovery_unifi_radio(
+        section_unifi_device, 
+        section_unifi_device_users,
+) -> DiscoveryResult:
     radio_data = section_unifi_device.get('radio_table')
     if radio_data:
         for radio in radio_data:
@@ -777,7 +793,7 @@ def discovery_unifi_radio(section_unifi_device, section_unifi_device_users
 
 
 def check_unifi_radio(item, section_unifi_device, section_unifi_device_users
-                      ) -> type_defs.CheckResult:
+                      ) -> CheckResult:
     radio_data = section_unifi_device.get('radio_table')
     for idx, radio in enumerate(radio_data):
         if item == f"%s" % radio.get('name'):
@@ -835,7 +851,7 @@ register.check_plugin(
 def discover_unifi_user(
         params: Mapping[str, Any],
         section: Section,
-) -> type_defs.DiscoveryResult:
+) -> DiscoveryResult:
     yield Service(item=f"Info")
     yield Service(item=f"Uplink")
 
@@ -843,7 +859,7 @@ def discover_unifi_user(
 def check_unifi_user(
         item: str,
         section: Section
-) -> type_defs.CheckResult:
+) -> CheckResult:
     if item == 'Info':
         yield Result(state=State.OK, summary=f"Hostname: %s" % section.get('hostname'))
         yield Result(state=State.OK, summary=f"Name: %s" % section.get('name'))
