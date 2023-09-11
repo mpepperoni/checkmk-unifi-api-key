@@ -33,8 +33,8 @@ from cmk.base.plugins.agent_based.agent_based_api.v1.type_defs import (
     HostLabelGenerator,
     DiscoveryResult,
     CheckResult,
+    StringTable,
 )
-from cmk.base.api.agent_based.type_defs import StringTable
 from typing import (
     Any,
     Dict,
@@ -45,8 +45,7 @@ from typing import (
 )
 import json
 
-SubSection = Dict[str, str]
-Section = Dict
+Section = Optional[Dict]
 
 UNIFI_DEVICE_STATES = {
     0: "disconnected",
@@ -189,7 +188,7 @@ def host_labels(section: Dict) -> HostLabelGenerator:
 
 def parse_unifi(
         string_table: StringTable,
-) -> Dict | None:
+) -> Section:
     """
     :param string_table: dictionary with all data for all checks and subchecks
     :return:
