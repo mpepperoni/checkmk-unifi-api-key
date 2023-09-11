@@ -189,10 +189,6 @@ def host_labels(section: Dict) -> HostLabelGenerator:
 def parse_unifi(
         string_table: StringTable,
 ) -> Section:
-    """
-    :param string_table: dictionary with all data for all checks and subchecks
-    :return:
-    """
     if string_table:
         return Section(**json.loads(str(string_table[0][0])))
     return Section(None)
@@ -249,6 +245,7 @@ register.check_plugin(
 # ***************************** UNIFI CONTROLLER *****************************
 
 def discover_unifi_controller(
+        section: Section,
 ) -> DiscoveryResult:
     yield Service()
 
@@ -699,7 +696,10 @@ register.check_plugin(
 
 # ***************************** UNIFI WIFI INTERFACE (Piggyback) *****************************
 
-def discovery_unifi_wifi(section_unifi_device, section_unifi_device_users):
+def discovery_unifi_wifi(
+    section_unifi_device: Section,
+    section_unifi_device_users: Section
+) -> DiscoveryResult:
     wifi_ssid_data = section_unifi_device.get('vap_table')
     if wifi_ssid_data:
         for ssid in wifi_ssid_data:
@@ -822,6 +822,7 @@ register.check_plugin(
 # ***************************** UNIFI User (Piggyback) *****************************
 
 def discover_unifi_user(
+        section: Section,
 ) -> DiscoveryResult:
     yield Service(item=f"Info")
     yield Service(item=f"Uplink")
