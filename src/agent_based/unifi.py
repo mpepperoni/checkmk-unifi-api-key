@@ -13,6 +13,7 @@
 # Author: Frank Baier
 # E-Mail: dev@baier-nt.de
 #
+from __future__ import annotations
 from cmk.gui.i18n import _
 from dataclasses import dataclass
 from cmk.base.api.agent_based.inventory_classes import TableRow
@@ -37,14 +38,15 @@ from cmk.base.plugins.agent_based.agent_based_api.v1 import (
 from typing import (
     Any,
     Dict,
-    Optional,
-    Sequence,
+    List,
     Mapping,
+    Optional,
+    Sequence, 
 )
 import json
 
 SubSection = Dict[str, str]
-Section = Dict[str, SubSection]
+Section = Dict
 
 UNIFI_DEVICE_STATES = {
     0: "disconnected",
@@ -185,7 +187,9 @@ def host_labels(section: Dict) -> HostLabelGenerator:
         yield HostLabel(u'unifi_device_type', devtype2)
 
 
-def parse_unifi(string_table):
+def parse_unifi(        
+        string_table: List[List[str]],
+) -> Dict | None:
     """
     :param string_table: dictionary with all data for all checks and subchecks
     :return:
@@ -197,7 +201,9 @@ def parse_unifi(string_table):
 
 # ***************************** UNIFI SITES *****************************
 
-def discover_unifi_controller_sites(section):
+def discover_unifi_controller_sites(
+        section: Section,
+) -> DiscoveryResult:
     for site in section:
         yield Service(item=site.get('desc'))
         for data in site.get('health'):
@@ -243,7 +249,8 @@ register.check_plugin(
 
 # ***************************** UNIFI CONTROLLER *****************************
 
-def discover_unifi_controller(section):
+def discover_unifi_controller(
+) -> DiscoveryResult:
     yield Service()
 
 
@@ -277,7 +284,9 @@ register.check_plugin(
 
 # ***************************** UNIFI CONTROLLER HEALTH *****************************
 
-def discover_unifi_site_controller_health(section):
+def discover_unifi_site_controller_health(
+        section: Section,
+) -> DiscoveryResult:
     for data in section:
         if data.get('status') != 'unknown':
             yield Service(item=f"%s" % data.get('subsystem'))
@@ -325,7 +334,9 @@ register.check_plugin(
 
 # ***************************** UNIFI DEVICE (Piggyback) *****************************
 
-def discover_unifi_device(section):
+def discover_unifi_device(
+        section: Section,
+) -> DiscoveryResult:
     devtype = section.get("type")
     # name = section.get("name")
     if devtype:
@@ -394,7 +405,7 @@ register.agent_section(
 register.check_plugin(
     name="unifi_device",
     sections=["unifi_device"],
-    service_name="Unifi %s",
+    service_name="Unifi Device %s",
     discovery_function=discover_unifi_device,
     check_function=check_unifi_device,
 )
@@ -423,7 +434,7 @@ class UnifiInterface(interfaces.Interface):
         self.finalize()
 
 
-def _convert_unifi_counters_if(section: Section) -> interfaces.Section:
+def _convert_unifi_counters_if(section: Section | List) -> interfaces.Section:
     return [
         UnifiInterface(
             # index=str(line.get('port_idx')),
@@ -519,6 +530,16 @@ def inventory_unifi_network_ports(section):
     )
 
 
+register.agent_section(
+    name="unifi_device_if",
+    parse_function=parse_unifi,
+)
+
+register.inventory_plugin(
+    name="unifi_device_if",
+    inventory_function=inventory_unifi_network_ports
+)
+
 register.check_plugin(
     name='unifi_device_if',
     sections=["unifi_device_if"],
@@ -532,15 +553,6 @@ register.check_plugin(
     check_function=check_unifi_network_port_if,
 )
 
-register.agent_section(
-    name="unifi_device_if",
-    parse_function=parse_unifi,
-)
-
-register.inventory_plugin(
-    name="unifi_device_if",
-    inventory_function=inventory_unifi_network_ports
-)
 
 # ***************************** UNIFI INTERFACE POE (Piggyback) *****************************
 
@@ -745,7 +757,10 @@ def wifi_type(ssid):
         return "5G"
 
 
-def discovery_unifi_radio(section_unifi_device, section_unifi_device_users):
+def discovery_unifi_radio(
+        section_unifi_device: Section,
+        section_unifi_device_users: Section,
+) -> DiscoveryResult:
     radio_data = section_unifi_device.get('radio_table')
     if radio_data:
         for radio in radio_data:
@@ -781,7 +796,7 @@ def check_unifi_radio(item, section_unifi_device, section_unifi_device_users):
                     if user.get('radio_name') == item:
                         yield Result(state=State.OK, notice=f"Hostname: %s" % user.get('hostname'))
                         yield Result(state=State.OK, notice=f"MAC: %s" % user.get('mac'))
-                        yield Result(state=State.OK, notice=f"IP: %s" %  user.get('ip'))
+                        yield Result(state=State.OK, notice=f"IP: %s" % user.get('ip'))
                         yield Result(state=State.OK, notice=f"ESSID: %s" % user.get('essid'))
                         yield Result(state=State.OK, notice=f"Network: %s" % user.get('network'))
                         yield Result(state=State.OK, notice=f"RSSI: %s" % user.get('rssi'))
@@ -807,14 +822,10 @@ register.check_plugin(
 
 # ***************************** UNIFI User (Piggyback) *****************************
 
-def discover_unifi_user(params, section):
-    if not params.get('unifi_clients', False):
-        yield Service(item=f"Info")
-        yield Service(item=f"Uplink")
-    else:
-        if client in params.get('unifi_clients', {}):
-            yield Service(item=f"Info")
-            yield Service(item=f"Uplink")
+def discover_unifi_user(
+) -> DiscoveryResult:
+    yield Service(item=f"Info")
+    yield Service(item=f"Uplink")
 
 
 def check_unifi_user(item, section):
