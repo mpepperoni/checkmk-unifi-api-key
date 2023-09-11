@@ -740,7 +740,7 @@ def check_unifi_wifi(item, section_unifi_device, section_unifi_device_users):
 
 register.check_plugin(
     name="unifi_device_if_wifi",
-    sections=["unifi_device", "unifi_device_users"],
+    sections=[Optional["unifi_device"], Optional["unifi_device_users"]],
     service_name="Unifi SSID %s",
     discovery_function=discovery_unifi_wifi,
     check_function=check_unifi_wifi,
@@ -812,7 +812,7 @@ register.agent_section(
 
 register.check_plugin(
     name="unifi_device_radio",
-    sections=["unifi_device", "unifi_device_users"],
+    sections=[Optional["unifi_device"], Optional["unifi_device_users"]],
     service_name="Unifi Radio %s",
     discovery_function=discovery_unifi_radio,
     check_function=check_unifi_radio,
