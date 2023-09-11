@@ -181,7 +181,7 @@ def host_labels(section: Dict) -> type_defs.HostLabelGenerator:
         yield HostLabel(u'unifi_device_type', devtype2)
 
 
-def parse_unifi(string_table: type_defs.StringTable) -> Section:
+def parse_unifi(string_table) -> Section:
     if string_table:
         data = json.loads(string_table[0][0])
         assert isinstance(data, dict)
