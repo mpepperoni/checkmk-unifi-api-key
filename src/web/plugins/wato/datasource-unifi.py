@@ -77,7 +77,6 @@ def _valuespec_special_agents_unifi():
                 ("udm_pro",
                  Checkbox(
                      title=_("UDM-Pro API"),
-                     default_value=False,
                      label=_("Using UDMP-Pro API-Endpoints"
                              "For CloudKey (UCK) or self depoyed installations do not enable!"),
                      default_value=False,
