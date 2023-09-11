@@ -235,7 +235,7 @@ register.agent_section(
 register.check_plugin(
     name="unifi_controller_sites",
     sections=["unifi_controller_sites"],
-    service_name="Site %s",
+    service_name="Unifi Site %s",
     discovery_function=discover_unifi_controller_sites,
     check_function=check_unifi_controller_sites,
 )
