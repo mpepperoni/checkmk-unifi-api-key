@@ -195,12 +195,6 @@ def parse_unifi(string_table):
     return dict()
 
 
-register.agent_section(
-    name="unifi_device_users",
-    parse_function=parse_unifi,
-)
-
-
 # ***************************** UNIFI SITES *****************************
 
 def discover_unifi_controller_sites(section):
