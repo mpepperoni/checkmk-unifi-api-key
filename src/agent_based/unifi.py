@@ -186,9 +186,7 @@ def host_labels(section: Dict) -> HostLabelGenerator:
         yield HostLabel(u'unifi_device_type', devtype2)
 
 
-def parse_unifi(
-        string_table: StringTable,
-) -> Section:
+def parse_unifi(string_table) -> Section:
     if string_table:
         return Section(**json.loads(str(string_table[0][0])))
     return Section(None)
