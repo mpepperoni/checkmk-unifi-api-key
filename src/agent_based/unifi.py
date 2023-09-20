@@ -41,21 +41,19 @@ from cmk.base.plugins.agent_based.utils.interfaces import (
     saveint,
     Attributes,
     Counters,
+    Section,
+    TInterfaceType,
 )
 from typing import (
     Any,
     Dict,
-    List,
     Mapping,
     Optional,
     Sequence,
-    Union,
 )
 import json
 
-Section = Union[Dict, List, None]
-
-UNIFI_DEVICE_STATES = {
+UNIFI_DEVICE_STATES: dict[int, str] = {
     0: "disconnected",
     1: "connected",
     2: "pending",
@@ -178,6 +176,26 @@ UNIFI_DEVICE_TABLE: dict[str, str] = {
 }
 
 
+@dataclass
+class UnifiSection:
+    data: Optional[Dict]
+
+
+@dataclass
+class UnifiDevice:
+    data: Optional[Dict]
+
+
+@dataclass
+class UnifiUsers:
+    data: Optional[Dict]
+
+
+@dataclass
+class UnifiUser:
+    data: Optional[Dict]
+
+
 def _safe_int(val, default=0):
     try:
         return int(val)
@@ -186,60 +204,87 @@ def _safe_int(val, default=0):
 
 
 def host_labels(
-        section: Section
+        section: UnifiSection
 ) -> HostLabelGenerator:
-    device_type = section.get("type")
-    device_type2 = section.get("ubnt_device_type")
+    unifi = section.data
+    device_type = unifi.get("type")
+    device_type2 = unifi.get("ubnt_device_type")
     if device_type:
         yield HostLabel(u'unifi_device_type', device_type)
     elif device_type2:
         yield HostLabel(u'unifi_device_type', device_type2)
 
     yield HostLabel(u'unifi_device_model',
-                    UNIFI_DEVICE_TABLE.get(section.get('model'), section.get('model', 'unknown')))
+                    UNIFI_DEVICE_TABLE.get(unifi.get('model'), unifi.get('model', 'unknown')))
 
 
-def parse_unifi(string_table) -> Section:
+def parse_unifi(string_table) -> UnifiSection | None:
     if string_table:
         data = json.loads(string_table[0][0])
-        return data
+        if data:
+            return UnifiSection(data=data)
     return None
+
+
+def parse_device(string_table) -> UnifiDevice:
+    if string_table:
+        data = json.loads(string_table[0][0])
+        if data:
+            return UnifiDevice(data=data)
+
+
+def parse_users(string_table) -> UnifiUsers:
+    if string_table:
+        data = json.loads(string_table[0][0])
+        if data:
+            return UnifiUsers(data=data)
+
+
+def parse_user(string_table) -> UnifiUser:
+    if string_table:
+        data = json.loads(string_table[0][0])
+        if data:
+            return UnifiUser(data=data)
 
 
 # ***************************** UNIFI SITES *****************************
 
 def discover_unifi_controller_sites(
-        section: Section,
+        section: UnifiSection,
 ) -> DiscoveryResult:
-    for site in section:
-        yield Service(item=site.get('desc'))
-        for data in site.get('health'):
-            if data.get('status') != 'unknown':
-                yield Service(item=f"%s %s" % (site.get('desc'), data.get('subsystem')))
+    if section:
+        unifi = section.data
+        for site in unifi:
+            yield Service(item=site.get('desc'))
+            for data in site.get('health'):
+                if data.get('status') != 'unknown':
+                    yield Service(item=f"%s %s" % (site.get('desc'), data.get('subsystem')))
 
 
 def check_unifi_controller_sites(
         item: str,
-        section: Section,
+        section: UnifiSection,
 ) -> CheckResult:
-    for site in section:
-        if item == site.get('desc'):
-            yield Result(state=State.OK, summary=f"Site description: %s" % site.get('desc'))
-            yield Result(state=State.OK, summary=f"Site id: %s" % site.get('name'))
-            yield Result(state=State.OK, summary=f"Alarms: %s" % site.get('num_new_alarms'))
+    if section:
+        sites = section.data
+        for site in sites:
+            if item == site.get('desc'):
+                yield Result(state=State.OK, summary=f"Site description: %s" % site.get('desc'))
+                yield Result(state=State.OK, summary=f"Site id: %s" % site.get('name'))
+                yield Result(state=State.OK, summary=f"Alarms: %s" % site.get('num_new_alarms'))
 
-        for data in site.get('health'):
-            if item == f"%s %s" % (site.get('desc'), data.get('subsystem')):
-                yield Result(state=State.OK, summary=f"Status: %s" % data.get('status'))
-                yield Result(state=State.OK, summary=f"adopted Devices: %s" % data.get('num_adopted'))
-                yield Result(state=State.OK, summary=f"pending Devices: %s" % data.get('num_pending'))
-                yield Result(state=State.OK, summary=f"disconnected Devices: %s" % data.get('num_disconnected'))
-                if data.get('num_disabled') is not None:
-                    yield Result(state=State.OK, summary=f"disabled Devices: %s" % data.get('num_disabled'))
-                yield Result(state=State.OK, summary=f"Users: %s" % data.get('num_user', 0))
-                yield Result(state=State.OK, summary=f"Guests: %s" % data.get('num_guest', 0))
-                yield Metric("user-num_sta", int(data.get('num_user', 0)))
-                yield Metric("guest-num_sta", int(data.get('num_guest', 0)))
+            for data in site.get('health'):
+                if item == f"%s %s" % (site.get('desc'), data.get('subsystem')):
+                    yield Result(state=State.OK, summary=f"Status: %s" % data.get('status'))
+                    yield Result(state=State.OK, summary=f"adopted Devices: %s" % data.get('num_adopted'))
+                    yield Result(state=State.OK, summary=f"pending Devices: %s" % data.get('num_pending'))
+                    yield Result(state=State.OK, summary=f"disconnected Devices: %s" % data.get('num_disconnected'))
+                    if data.get('num_disabled') is not None:
+                        yield Result(state=State.OK, summary=f"disabled Devices: %s" % data.get('num_disabled'))
+                    yield Result(state=State.OK, summary=f"Users: %s" % data.get('num_user', 0))
+                    yield Result(state=State.OK, summary=f"Guests: %s" % data.get('num_guest', 0))
+                    yield Metric("user-num_sta", int(data.get('num_user', 0)))
+                    yield Metric("guest-num_sta", int(data.get('num_guest', 0)))
 
 
 register.agent_section(
@@ -260,24 +305,30 @@ register.check_plugin(
 # ***************************** UNIFI CONTROLLER *****************************
 
 def discover_unifi_controller(
-        section: Section,
+        section: UnifiSection,
 ) -> DiscoveryResult:
     yield Service()
 
 
 def check_unifi_controller(
-        section: Section,
+        section: UnifiSection,
 ) -> CheckResult:
-    yield Result(state=State.OK, summary=f"Name: %s" % section.get('name'))
-    yield Result(state=State.OK, summary=f"Type: %s" % section.get('ubnt_device_type'))
-    yield Result(state=State.OK, summary=f"Build: %s" % section.get('build'))
+    if section:
+        controller = section.data
+        yield Result(state=State.OK, summary=f"Name: %s" % controller.get('name'))
+        yield Result(state=State.OK, summary=f"Type: %s" % controller.get('ubnt_device_type'))
+        yield Result(state=State.OK, summary=f"Build: %s" % controller.get('build'))
 
-    if section.get('unsupported_device_count') == 0:
-        yield Result(state=State.OK, summary=f"Unsupported devices: %s" % section.get('unsupported_device_count'))
-        yield Result(state=State.OK, notice=f"Unsupported devices:  %s" % section.get('unsupported_device_list'))
-    else:
-        yield Result(state=State.WARN, summary=f"Unsupported devices: %s" % section.get('unsupported_device_count'))
-        yield Result(state=State.WARN, notice=f"Unsupported devices:  %s" % section.get('unsupported_device_list'))
+        if controller.get('unsupported_device_count') == 0:
+            yield Result(state=State.OK, summary=f"Unsupported devices: %s" %
+                                                 controller.get('unsupported_device_count'))
+            yield Result(state=State.OK, notice=f"Unsupported devices:  %s" %
+                                                controller.get('unsupported_device_list'))
+        else:
+            yield Result(state=State.WARN, summary=f"Unsupported devices: %s" %
+                                                   controller.get('unsupported_device_count'))
+            yield Result(state=State.WARN, notice=f"Unsupported devices:  %s" %
+                                                  controller.get('unsupported_device_list'))
 
 
 register.agent_section(
@@ -298,40 +349,46 @@ register.check_plugin(
 # ***************************** UNIFI CONTROLLER HEALTH *****************************
 
 def discover_unifi_site_controller_health(
-        section: Section,
+        section: UnifiSection,
 ) -> DiscoveryResult:
-    for data in section:
-        if data.get('status') != 'unknown':
-            yield Service(item=f"%s" % data.get('subsystem'))
+    if section:
+        health = section.data
+        for data in health:
+            if data.get('status') != 'unknown':
+                yield Service(item=f"%s" % data.get('subsystem'))
 
 
 def check_unifi_site_controller_health(
         item: str,
-        section: Section,
+        section: UnifiSection,
 ) -> CheckResult:
-    for data in section:
-        if item == f"%s" % data.get('subsystem'):
-            yield Result(state=State.OK, summary=f"Status: %s" % data.get('status'))
-            if data.get('num_adopted') is not None:
-                yield Result(state=State.OK, summary=f"adopted Devices: %s" % data.get('num_adopted'))
-            if data.get('num_pending') is not None:
-                if data.get('num_pending') == 0:
-                    yield Result(state=State.OK, summary=f"pending Devices: %s" % data.get('num_pending'))
-                else:
-                    yield Result(state=State.WARN, summary=f"pending Devices: %s" % data.get('num_pending'))
+    if section:
+        health = section.data
+        for data in health:
+            if item == f"%s" % data.get('subsystem'):
+                yield Result(state=State.OK, summary=f"Status: %s" % data.get('status'))
+                if data.get('num_adopted') is not None:
+                    yield Result(state=State.OK, summary=f"adopted Devices: %s" % data.get('num_adopted'))
+                if data.get('num_pending') is not None:
+                    if data.get('num_pending') == 0:
+                        yield Result(state=State.OK, summary=f"pending Devices: %s" % data.get('num_pending'))
+                    else:
+                        yield Result(state=State.WARN, summary=f"pending Devices: %s" % data.get('num_pending'))
 
-            if data.get('num_disconnected') is not None:
-                if data.get('num_disconnected') == 0:
-                    yield Result(state=State.OK, summary=f"disconnected Devices: %s" % data.get('num_disconnected'))
-                else:
-                    yield Result(state=State.WARN, summary=f"disconnected Devices: %s" % data.get('num_disconnected'))
+                if data.get('num_disconnected') is not None:
+                    if data.get('num_disconnected') == 0:
+                        yield Result(state=State.OK, summary=f"disconnected Devices: %s" %
+                                                             data.get('num_disconnected'))
+                    else:
+                        yield Result(state=State.WARN, summary=f"disconnected Devices: %s" %
+                                                               data.get('num_disconnected'))
 
-            if data.get('num_disabled') is not None:
-                yield Result(state=State.OK, summary=f"disabled Devices: %s" % data.get('num_disabled'))
-            yield Result(state=State.OK, summary=f"Users: %s" % data.get('num_user', 0))
-            yield Result(state=State.OK, summary=f"Guests: %s" % data.get('num_guest', 0))
-            yield Metric("user-num_sta", int(data.get('num_user', 0)))
-            yield Metric("guest-num_sta", int(data.get('num_guest', 0)))
+                if data.get('num_disabled') is not None:
+                    yield Result(state=State.OK, summary=f"disabled Devices: %s" % data.get('num_disabled'))
+                yield Result(state=State.OK, summary=f"Users: %s" % data.get('num_user', 0))
+                yield Result(state=State.OK, summary=f"Guests: %s" % data.get('num_guest', 0))
+                yield Metric("user-num_sta", int(data.get('num_user', 0)))
+                yield Metric("guest-num_sta", int(data.get('num_guest', 0)))
 
 
 register.agent_section(
@@ -351,71 +408,73 @@ register.check_plugin(
 # ***************************** UNIFI DEVICE (Piggyback) *****************************
 
 def discover_unifi_device(
-        section: Section,
+        section: UnifiDevice,
 ) -> DiscoveryResult:
-    devtype = section.get("type")
-    # name = section.get("name")
-    if devtype:
-        yield Service(item='Device')
-    if section.get('has_temperature', False) or section.get('has_fan'):
-        yield Service(item='Environment')
+    if section:
+        unifi = section.data
+        if unifi.get("type"):
+            yield Service(item='Device')
+        if unifi.get('has_temperature', False) or unifi.get('has_fan'):
+            yield Service(item='Environment')
 
 
 def check_unifi_device(
         item: str,
-        section: Section,
+        section: UnifiDevice,
 ) -> CheckResult:
-    if item == 'Device':
-        yield Result(state=State.OK, summary=f"Type: %s" % section.get('type'))
-        yield Result(state=State.OK, summary=f"Model: %s" % UNIFI_DEVICE_TABLE.get(section.get('model'),
-                                                                                   section.get('model', 'unknown')))
-        yield Result(state=State.OK, summary=f"Serial: %s" % section.get('serial'))
-        yield Result(state=State.OK, summary=f"Version: %s" % section.get('version'))
-        yield Result(state=State.OK, summary=f"Name: %s" % section.get('name'))
-        yield Result(state=State.OK, summary=f"IP: %s" % section.get('ip'))
-        yield Result(state=State.OK, summary=f"Satisfaction: %s%%" % int(section.get('satisfaction', 0)))
-        yield Metric(name="satisfaction", value=int(section.get('satisfaction', 0)), boundaries=(0, 100))
+    if section:
+        unifi = section.data
+        if item == 'Device':
+            yield Result(state=State.OK, summary=f"Type: %s" % unifi.get('type'))
+            yield Result(state=State.OK, summary=f"Model: %s" % UNIFI_DEVICE_TABLE.get(unifi.get('model'),
+                                                                                       unifi.get('model', 'unknown')))
+            yield Result(state=State.OK, summary=f"Serial: %s" % unifi.get('serial'))
+            yield Result(state=State.OK, summary=f"Version: %s" % unifi.get('version'))
+            yield Result(state=State.OK, summary=f"Name: %s" % unifi.get('name'))
+            yield Result(state=State.OK, summary=f"IP: %s" % unifi.get('ip'))
+            yield Result(state=State.OK, summary=f"Satisfaction: %s%%" % int(unifi.get('satisfaction', 0)))
+            yield Metric(name="satisfaction", value=int(unifi.get('satisfaction', 0)), boundaries=(0, 100))
 
-        if _safe_int(section.get('state')) == 1:
-            yield Result(state=State.OK,
-                         summary=f"State1: %s" % UNIFI_DEVICE_STATES.get(section.get('state'), section.get('state')))
-        elif _safe_int(section.get('state') == 2):
-            yield Result(state=State.WARN,
-                         summary=f"State2: %s" % UNIFI_DEVICE_STATES.get(section.get('state'), section.get('state')))
-        else:
-            yield Result(state=State.CRIT,
-                         summary=f"State0: %s" % UNIFI_DEVICE_STATES.get(section.get('state'), section.get('state')))
-
-        if section.get('adopted'):
-            yield Result(state=State.OK, summary=f"adopted")
-        else:
-            yield Result(state=State.WARN, summary=f"waiting for adoption")
-
-        yield Result(state=State.WARN if section.get('model_in_eol') else State.OK,
-                     notice=f"Model in EOL: %s" % section.get('model_in_eol'))
-        yield Result(state=State.WARN if section.get('model_in_lts') else State.OK,
-                     notice=f"Model in LTS: %s" % section.get('model_in_lts'))
-        yield Result(state=State.WARN if section.get('model_incompatible') else State.OK,
-                     notice=f"Model incompatible: %s" % section.get('model_incompatible'))
-
-        if section.get('jumboframe_enabled', False):
-            yield Result(state=State.OK, notice=f"Jumbo-Frames: enabled")
-        else:
-            yield Result(state=State.OK, notice=f"Jumbo-Frames: disabled")
-
-    elif item == 'Environment':
-        if section.get('has_temperature') and section.get('general_temperature') is not None:
-            temperature = round(float(section.get('general_temperature')), 1)
-            if section.get('overheating'):
-                yield Result(state=State.CRIT, summary=f'Temperature: {temperature:.1f}°C (overheating)')
+            if _safe_int(unifi.get('state')) == 1:
+                yield Result(state=State.OK,
+                             summary=f"State1: %s" % UNIFI_DEVICE_STATES.get(unifi.get('state'), unifi.get('state')))
+            elif _safe_int(unifi.get('state') == 2):
+                yield Result(state=State.WARN,
+                             summary=f"State2: %s" % UNIFI_DEVICE_STATES.get(unifi.get('state'), unifi.get('state')))
             else:
+                yield Result(state=State.CRIT,
+                             summary=f"State0: %s" % UNIFI_DEVICE_STATES.get(unifi.get('state'), unifi.get('state')))
+
+            if unifi.get('adopted'):
+                yield Result(state=State.OK, summary=f"adopted")
+            else:
+                yield Result(state=State.WARN, summary=f"waiting for adoption")
+
+            yield Result(state=State.WARN if unifi.get('model_in_eol') else State.OK,
+                         notice=f"Model in EOL: %s" % unifi.get('model_in_eol'))
+            yield Result(state=State.WARN if unifi.get('model_in_lts') else State.OK,
+                         notice=f"Model in LTS: %s" % unifi.get('model_in_lts'))
+            yield Result(state=State.WARN if unifi.get('model_incompatible') else State.OK,
+                         notice=f"Model incompatible: %s" % unifi.get('model_incompatible'))
+
+            if unifi.get('jumboframe_enabled', False):
+                yield Result(state=State.OK, notice=f"Jumbo-Frames: enabled")
+            else:
+                yield Result(state=State.OK, notice=f"Jumbo-Frames: disabled")
+
+        elif item == 'Environment':
+            if unifi.get('has_temperature') and unifi.get('general_temperature') is not None:
+                temperature = round(float(unifi.get('general_temperature')), 1)
+                if unifi.get('overheating'):
+                    yield Result(state=State.CRIT, summary=f'Temperature: {temperature:.1f}°C (overheating)')
+                else:
+                    yield Result(state=State.OK, summary=f'Temperature: {temperature:.1f}°C')
+
+                yield Metric(name="temperature", value=temperature)
                 yield Result(state=State.OK, summary=f'Temperature: {temperature:.1f}°C')
 
-            yield Metric(name="temperature", value=temperature)
-            yield Result(state=State.OK, summary=f'Temperature: {temperature:.1f}°C')
-
-        if section.get('has_fan'):
-            yield Result(state=State.OK, summary=f"Fan-Level: %s%%" % section.get('fan_level'))
+            if unifi.get('has_fan'):
+                yield Result(state=State.OK, summary=f"Fan-Level: %s%%" % unifi.get('fan_level'))
 
 
 register.agent_section(
@@ -460,20 +519,10 @@ class InterfaceWithCounters:
     unifi: UnifiAttributes
 
 
-def discovery_unifi_network_port_if(
-        params: Sequence[Mapping[str, Any]],
-        section: Section,
-) -> DiscoveryResult:
-    yield from interfaces.discover_interfaces(
-        params,
-        section,
-    )
-
-
 def check_unifi_network_port_if(
         item: str,
         params: Mapping[str, Any],
-        section: interfaces.Section[interfaces.TInterfaceType],
+        section: interfaces.Section[TInterfaceType],
 ) -> CheckResult:
     yield from interfaces.check_multiple_interfaces(
         item,
@@ -483,7 +532,7 @@ def check_unifi_network_port_if(
 
 
 def inventory_unifi_network_ports(
-        section: Section
+        section: Section[TInterfaceType]
 ) -> InventoryResult:
     _total_ethernet_ports = 0
     _available_ethernet_ports = 0
@@ -515,7 +564,7 @@ def inventory_unifi_network_ports(
     )
 
 
-def parse_unifi_if(string_table) -> Section:
+def parse_unifi_if(string_table) -> Section[TInterfaceType]:
     if string_table:
         data = json.loads(string_table[0][0])
 
@@ -566,7 +615,7 @@ def parse_unifi_if(string_table) -> Section:
             for idx, line in enumerate(data)
         ]
 
-    return None
+    return Section()
 
 
 register.agent_section(
@@ -586,7 +635,7 @@ register.check_plugin(
     discovery_ruleset_name="inventory_if_rules",
     discovery_ruleset_type=register.RuleSetType.ALL,
     discovery_default_parameters=dict(interfaces.DISCOVERY_DEFAULT_PARAMETERS),
-    discovery_function=discovery_unifi_network_port_if,
+    discovery_function=interfaces.discover_interfaces,
     check_ruleset_name="if",
     check_default_parameters=interfaces.CHECK_DEFAULT_PARAMETERS,
     check_function=check_unifi_network_port_if,
@@ -617,11 +666,11 @@ Class8: 71,00W/90,0W
 
 def discovery_unifi_poe(
         params: Sequence[Mapping[str, Any]],
-        section: Section,
+        section: Section[TInterfaceType],
 ) -> DiscoveryResult:
     poe_ports = []
     for idx, port in enumerate(section):
-        if 'poe_enable' in port.unifi:
+        if port.unifi.poe_enable:
             poe_ports.append(port)
 
     yield from interfaces.discover_interfaces(
@@ -633,7 +682,7 @@ def discovery_unifi_poe(
 def check_unifi_poe(
         item: str,
         params: Mapping[str, Any],
-        section: Section,
+        section: Section[TInterfaceType],
 ) -> CheckResult:
     port = next(filter(
         lambda x: _safe_int(item, -1) == _safe_int(
@@ -704,7 +753,7 @@ register.check_plugin(
 
 def discovery_unifi_info(
         params: Sequence[Mapping[str, Any]],
-        section: Section,
+        section: Section[TInterfaceType],
 ) -> DiscoveryResult:
     yield from interfaces.discover_interfaces(
         params,
@@ -715,11 +764,13 @@ def discovery_unifi_info(
 def check_unifi_info(
         item: str,
         params: Mapping[str, Any],
-        section: Section,
+        section: Section[TInterfaceType],
 ) -> CheckResult:
     port = next(filter(
-        lambda x: _safe_int(item, -1) == _safe_int(x.attributes.index) or item == x.attributes.alias or
-                  item == "%s %s" % (x.attributes.alias, x.attributes.index), section), None)
+        lambda x: _safe_int(item, -1) == _safe_int(
+            x.attributes.index) or item == x.attributes.alias or item == "%s %s" % (
+                      x.attributes.alias, x.attributes.index),
+        section), None)  # fix Service Discovery appearance alias/descr
     if port:
         unifi = port.unifi
         if unifi.portconf:
@@ -752,43 +803,53 @@ def discovery_unifi_wifi(
         section_unifi_device,
         section_unifi_device_users,
 ) -> DiscoveryResult:
-    wifi_ssid_data = section_unifi_device.get('vap_table')
-    if wifi_ssid_data:
+    if section_unifi_device:
+        device = section_unifi_device.data
+        wifi_ssid_data = device.get('vap_table')
+        if wifi_ssid_data:
+            for ssid in wifi_ssid_data:
+                yield Service(item=f"%s_%s" % (ssid.get('name'), ssid.get('essid')))
+
+
+def check_unifi_wifi(
+        item: str,
+        section_unifi_device,
+        section_unifi_device_users,
+) -> CheckResult:
+    if section_unifi_device:
+        device = section_unifi_device.data
+        wifi_ssid_data = device.get('vap_table', [])
         for ssid in wifi_ssid_data:
-            yield Service(item=f"%s_%s" % (ssid.get('name'), ssid.get('essid')))
+            if item == f"%s_%s" % (ssid.get('name'), ssid.get('essid')):
+                yield Result(state=State.OK, summary=f"SSID: %s" % ssid.get('essid'))
+                yield Result(state=State.OK, summary=f"State/Up: %s/%s" % (ssid.get('state'), ssid.get('up')))
+                yield Result(state=State.OK, summary=f"Usage: %s" % ssid.get('usage'))
+                yield Result(state=State.OK, summary=f"Interface: %s" % ssid.get('name'))
+                yield Result(state=State.OK, summary=f"User: %s" % ssid.get('num_sta'))
+                yield Metric("num_sta", int(ssid.get('num_sta', 0)))
+                yield Result(state=State.OK, summary=f"avgClientSig: %sdBm" % ssid.get('avg_client_signal'))
+                yield Metric("avg_client_signal", int(ssid.get('avg_client_signal', 0)))
 
-
-def check_unifi_wifi(item, section_unifi_device, section_unifi_device_users
-                     ) -> CheckResult:
-    wifi_ssid_data = section_unifi_device.get('vap_table', [])
-    for ssid in wifi_ssid_data:
-        if item == f"%s_%s" % (ssid.get('name'), ssid.get('essid')):
-            yield Result(state=State.OK, summary=f"SSID: %s" % ssid.get('essid'))
-            yield Result(state=State.OK, summary=f"State/Up: %s/%s" % (ssid.get('state'), ssid.get('up')))
-            yield Result(state=State.OK, summary=f"Usage: %s" % ssid.get('usage'))
-            yield Result(state=State.OK, summary=f"Interface: %s" % ssid.get('name'))
-            yield Result(state=State.OK, summary=f"User: %s" % ssid.get('num_sta'))
-            yield Metric("num_sta", int(ssid.get('num_sta', 0)))
-            yield Result(state=State.OK, summary=f"avgClientSig: %sdBm" % ssid.get('avg_client_signal'))
-            yield Metric("avg_client_signal", int(ssid.get('avg_client_signal', 0)))
-            for user in section_unifi_device_users:
-                if item == "%s_%s" % (user.get('radio_name'), user.get('essid')):
-                    yield Result(state=State.OK,
-                                 notice=f"Hostname: %s, MAC: %s, IP: %s, ESSID: %s, Network: %s, "
-                                        f"RSSI: %sdBm, Noise: %sdBm, Signal: %sdBm" % (
-                                            user.get('hostname'),
-                                            user.get('mac'),
-                                            user.get('ip'),
-                                            user.get('essid'),
-                                            user.get('network'),
-                                            user.get('rssi'),
-                                            user.get('noise'),
-                                            user.get('signal'),
-                                        )
-                                 )
-    else:
-        if not wifi_ssid_data:
-            yield Result(state=State.OK, summary=f"No Data available")
+                if section_unifi_device_users:
+                    users = section_unifi_device_users.data
+                    for user in users:
+                        if item == "%s_%s" % (user.get('radio_name'), user.get('essid')):
+                            yield Result(state=State.OK,
+                                         notice=f"Hostname: %s, MAC: %s, IP: %s, ESSID: %s, Network: %s, "
+                                                f"RSSI: %sdBm, Noise: %sdBm, Signal: %sdBm" % (
+                                                    user.get('hostname'),
+                                                    user.get('mac'),
+                                                    user.get('ip'),
+                                                    user.get('essid'),
+                                                    user.get('network'),
+                                                    user.get('rssi'),
+                                                    user.get('noise'),
+                                                    user.get('signal'),
+                                                )
+                                         )
+        else:
+            if not wifi_ssid_data:
+                yield Result(state=State.OK, summary=f"No Data available")
 
 
 register.check_plugin(
@@ -813,55 +874,64 @@ def discovery_unifi_radio(
         section_unifi_device,
         section_unifi_device_users,
 ) -> DiscoveryResult:
-    radio_data = section_unifi_device.get('radio_table')
-    if radio_data:
-        for radio in radio_data:
-            yield Service(item=f"%s" % radio.get('name'))
+    if section_unifi_device:
+        device = section_unifi_device.data
+        radio_data = device.get('radio_table')
+        if radio_data:
+            for radio in radio_data:
+                yield Service(item=f"%s" % radio.get('name'))
 
 
-def check_unifi_radio(item, section_unifi_device, section_unifi_device_users
-                      ) -> CheckResult:
-    radio_data = section_unifi_device.get('radio_table')
-    for idx, radio in enumerate(radio_data):
-        if item == f"%s" % radio.get('name'):
-            if len(section_unifi_device.get('radio_table_stats')) > 0:
-                radio_stats = section_unifi_device.get('radio_table_stats')[idx]
-                yield Result(state=State.OK, summary=f"State: %s" % radio_stats.get('state'))
-                yield Result(state=State.OK, summary=f"Type: %s/%s" %
-                                                     (wifi_type(radio_stats), radio_stats.get('radio')))
-                yield Result(state=State.OK, summary=f"Channel: %s %s" %
-                                                     (radio_stats.get('channel'),
-                                                      "(fixed)" if radio.get('channel') else "(dynamic)"))
-                yield Metric("channel", int(radio_stats.get('channel', 0)))
-                yield Result(state=State.OK, summary=f"Width: %sMHz" % radio.get('ht'))
-                if radio.get('antenna_gain'):
-                    yield Result(state=State.OK, summary=f"Ant.Gain: %sdBm" % radio.get('antenna_gain'))
-                yield Result(state=State.OK, summary=f"curr.AntGain: %sdBm" % radio.get('current_antenna_gain'))
-                yield Result(state=State.OK, summary=f"User: %s" % radio_stats.get('user-num_sta'))
-                yield Result(state=State.OK, summary=f"Guest: %s" % radio_stats.get('guest-num_sta'))
-                yield Metric("user-num_sta", int(radio_stats.get('user-num_sta', 0)))
-                yield Metric("guest-num_sta", int(radio_stats.get('guest-num_sta', 0)))
+def check_unifi_radio(
+        item: str,
+        section_unifi_device,
+        section_unifi_device_users,
+) -> CheckResult:
+    if section_unifi_device:
+        device = section_unifi_device.data
+        radio_data = device.get('radio_table')
+        for idx, radio in enumerate(radio_data):
+            if item == f"%s" % radio.get('name'):
+                if len(device.get('radio_table_stats')) > 0:
+                    radio_stats = device.get('radio_table_stats')[idx]
+                    yield Result(state=State.OK, summary=f"State: %s" % radio_stats.get('state'))
+                    yield Result(state=State.OK, summary=f"Type: %s/%s" %
+                                                         (wifi_type(radio_stats), radio_stats.get('radio')))
+                    yield Result(state=State.OK, summary=f"Channel: %s %s" %
+                                                         (radio_stats.get('channel'),
+                                                          "(fixed)" if radio.get('channel') else "(dynamic)"))
+                    yield Metric("channel", int(radio_stats.get('channel', 0)))
+                    yield Result(state=State.OK, summary=f"Width: %sMHz" % radio.get('ht'))
+                    if radio.get('antenna_gain'):
+                        yield Result(state=State.OK, summary=f"Ant.Gain: %sdBm" % radio.get('antenna_gain'))
+                    yield Result(state=State.OK, summary=f"curr.AntGain: %sdBm" % radio.get('current_antenna_gain'))
+                    yield Result(state=State.OK, summary=f"User: %s" % radio_stats.get('user-num_sta'))
+                    yield Result(state=State.OK, summary=f"Guest: %s" % radio_stats.get('guest-num_sta'))
+                    yield Metric("user-num_sta", int(radio_stats.get('user-num_sta', 0)))
+                    yield Metric("guest-num_sta", int(radio_stats.get('guest-num_sta', 0)))
 
-                yield Result(state=State.OK, summary=f"Satisfaction: %s%%" % radio_stats.get('satisfaction'))
-                yield Metric("satisfaction", int(radio_stats.get('satisfaction', 0)))
+                    yield Result(state=State.OK, summary=f"Satisfaction: %s%%" % radio_stats.get('satisfaction'))
+                    yield Metric("satisfaction", int(radio_stats.get('satisfaction', 0)))
 
-                for user in section_unifi_device_users:
-                    if user.get('radio_name') == item:
-                        yield Result(state=State.OK, notice=f"Hostname: %s" % user.get('hostname'))
-                        yield Result(state=State.OK, notice=f"MAC: %s" % user.get('mac'))
-                        yield Result(state=State.OK, notice=f"IP: %s" % user.get('ip'))
-                        yield Result(state=State.OK, notice=f"ESSID: %s" % user.get('essid'))
-                        yield Result(state=State.OK, notice=f"Network: %s" % user.get('network'))
-                        yield Result(state=State.OK, notice=f"RSSI: %s" % user.get('rssi'))
-                        yield Result(state=State.OK, notice=f"Noise: %s" % user.get('noise'))
-                        yield Result(state=State.OK, notice=f"Signal: %s" % user.get('signal'))
-            else:
-                yield Result(state=State.OK, summary=f"Wifi interface %s not available" % item)
+                    if section_unifi_device_users:
+                        users = section_unifi_device_users.data
+                        for user in users:
+                            if user.get('radio_name') == item:
+                                yield Result(state=State.OK, notice=f"Hostname: %s" % user.get('hostname'))
+                                yield Result(state=State.OK, notice=f"MAC: %s" % user.get('mac'))
+                                yield Result(state=State.OK, notice=f"IP: %s" % user.get('ip'))
+                                yield Result(state=State.OK, notice=f"ESSID: %s" % user.get('essid'))
+                                yield Result(state=State.OK, notice=f"Network: %s" % user.get('network'))
+                                yield Result(state=State.OK, notice=f"RSSI: %s" % user.get('rssi'))
+                                yield Result(state=State.OK, notice=f"Noise: %s" % user.get('noise'))
+                                yield Result(state=State.OK, notice=f"Signal: %s" % user.get('signal'))
+                    else:
+                        yield Result(state=State.OK, summary=f"Wifi interface %s not available" % item)
 
 
 register.agent_section(
     name="unifi_device_users",
-    parse_function=parse_unifi,
+    parse_function=parse_users,
 )
 
 register.check_plugin(
@@ -877,7 +947,7 @@ register.check_plugin(
 
 def discover_unifi_user(
         params: Mapping[str, Any],
-        section: Section,
+        section: UnifiUser,
 ) -> DiscoveryResult:
     yield Service(item=f"Info")
     yield Service(item=f"Uplink")
@@ -885,47 +955,48 @@ def discover_unifi_user(
 
 def check_unifi_user(
         item: str,
-        section: Section
+        section: UnifiUser
 ) -> CheckResult:
+    users = section.data
     if item == 'Info':
-        yield Result(state=State.OK, summary=f"Hostname: %s" % section.get('hostname'))
-        yield Result(state=State.OK, summary=f"Name: %s" % section.get('name'))
-        yield Result(state=State.OK, summary=f"Note: %s" % section.get('note'))
-        yield Result(state=State.OK, summary=f"Network: %s" % section.get('network'))
-        yield Result(state=State.OK, summary=f"IP: %s" % section.get('ip'))
-        yield Result(state=State.OK, summary=f"Static-DHCP: %s" % section.get('use_fixedip'))
-        yield Result(state=State.OK, summary=f"Satifaction: %s%%" % section.get('satisfaction'))
-        yield Result(state=State.OK, notice=f"OUI: %s" % section.get('oui'))
-        yield Metric(name="satisfaction", value=int(section.get('satisfaction', 0)), boundaries=(0, 100))
+        yield Result(state=State.OK, summary=f"Hostname: %s" % users.get('hostname'))
+        yield Result(state=State.OK, summary=f"Name: %s" % users.get('name'))
+        yield Result(state=State.OK, summary=f"Note: %s" % users.get('note'))
+        yield Result(state=State.OK, summary=f"Network: %s" % users.get('network'))
+        yield Result(state=State.OK, summary=f"IP: %s" % users.get('ip'))
+        yield Result(state=State.OK, summary=f"Static-DHCP: %s" % users.get('use_fixedip'))
+        yield Result(state=State.OK, summary=f"Satifaction: %s%%" % users.get('satisfaction'))
+        yield Result(state=State.OK, notice=f"OUI: %s" % users.get('oui'))
+        yield Metric(name="satisfaction", value=int(users.get('satisfaction', 0)), boundaries=(0, 100))
 
     elif item == 'Uplink':
-        if section.get('is_wired'):
-            yield Result(state=State.OK, summary=f"Switch: %s" % section.get('uplink_name'))
-            yield Result(state=State.OK, summary=f"Port: %s" % section.get('sw_port'))
-            yield Result(state=State.OK, summary=f"Switch-MAC: %s" % section.get('sw_mac'))
+        if users.get('is_wired'):
+            yield Result(state=State.OK, summary=f"Switch: %s" % users.get('uplink_name'))
+            yield Result(state=State.OK, summary=f"Port: %s" % users.get('sw_port'))
+            yield Result(state=State.OK, summary=f"Switch-MAC: %s" % users.get('sw_mac'))
         else:
-            yield Result(state=State.OK, summary=f"Access-Point: %s" % section.get('uplink_name'))
-            yield Result(state=State.OK, summary=f"Radio: %s" % section.get('radio_name'))
-            yield Result(state=State.OK, summary=f"Channel: %s" % section.get('channel'))
-            yield Result(state=State.OK, summary=f"Protocoll: %s" % section.get('radio_proto'))
-            yield Result(state=State.OK, summary=f"ESSID: %s" % section.get('essid'))
-            yield Result(state=State.OK, summary=f"AP-MAC: %s" % section.get('ap_mac'))
-            yield Result(state=State.OK, notice=f"Signal: %sdBm" % int(section.get('signal', 0)))
-            yield Result(state=State.OK, notice=f"Noise: %sdBm" % int(section.get('noise', 0)))
-            yield Result(state=State.OK, notice=f"RSSI: %sdBm" % int(section.get('rssi', 0)))
-            yield Result(state=State.OK, notice=f"RX-Rate: %sMbps" % int(section.get('rx_rate') / 1000))
-            yield Result(state=State.OK, notice=f"TX-Rate: %sMBps" % int(section.get('tx_rate') / 1000))
-            yield Metric(name="channel", value=int(section.get('channel', 0)))
-            yield Metric(name="signal", value=int(section.get('signal', 0)), boundaries=(-120, 0), levels=(-70, -80))
-            yield Metric(name="noise", value=int(section.get('noise', 0)), boundaries=(-120, 0), levels=(-90, -80))
-            yield Metric(name="rssi", value=int(section.get('rssi', 0)) * -1, boundaries=(-120, 0))
-            yield Metric(name="rx_rate", value=int(section.get('rx_rate') / 1000))
-            yield Metric(name="tx_rate", value=int(section.get('tx_rate') / 1000))
+            yield Result(state=State.OK, summary=f"Access-Point: %s" % users.get('uplink_name'))
+            yield Result(state=State.OK, summary=f"Radio: %s" % users.get('radio_name'))
+            yield Result(state=State.OK, summary=f"Channel: %s" % users.get('channel'))
+            yield Result(state=State.OK, summary=f"Protocoll: %s" % users.get('radio_proto'))
+            yield Result(state=State.OK, summary=f"ESSID: %s" % users.get('essid'))
+            yield Result(state=State.OK, summary=f"AP-MAC: %s" % users.get('ap_mac'))
+            yield Result(state=State.OK, notice=f"Signal: %sdBm" % int(users.get('signal', 0)))
+            yield Result(state=State.OK, notice=f"Noise: %sdBm" % int(users.get('noise', 0)))
+            yield Result(state=State.OK, notice=f"RSSI: %sdBm" % int(users.get('rssi', 0)))
+            yield Result(state=State.OK, notice=f"RX-Rate: %sMbps" % int(users.get('rx_rate') / 1000))
+            yield Result(state=State.OK, notice=f"TX-Rate: %sMBps" % int(users.get('tx_rate') / 1000))
+            yield Metric(name="channel", value=int(users.get('channel', 0)))
+            yield Metric(name="signal", value=int(users.get('signal', 0)), boundaries=(-120, 0), levels=(-70, -80))
+            yield Metric(name="noise", value=int(users.get('noise', 0)), boundaries=(-120, 0), levels=(-90, -80))
+            yield Metric(name="rssi", value=int(users.get('rssi', 0)) * -1, boundaries=(-120, 0))
+            yield Metric(name="rx_rate", value=int(users.get('rx_rate') / 1000))
+            yield Metric(name="tx_rate", value=int(users.get('tx_rate') / 1000))
 
 
 register.agent_section(
     name="unifi_user",
-    parse_function=parse_unifi,
+    parse_function=parse_user,
 )
 
 register.check_plugin(
