@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8; py-indent-offset: 4 -*-
 #
-#  _   _       _  __ _ 
+#  _   _       _  __ _
 # | | | |     (_)/ _(_)
-# | | | |_ __  _| |_ _ 
+# | | | |_ __  _| |_ _
 # | | | | '_ \| |  _| |
 # | |_| | | | | | | | |
 #  \___/|_| |_|_|_| |_|
 #
 # created: 01/2022
+# last update 09/2023
 #
 # Author: Frank Baier
 # E-Mail: dev@baier-nt.de
@@ -33,11 +34,14 @@ from cmk.base.plugins.agent_based.agent_based_api.v1.type_defs import (
     CheckResult,
     InventoryResult,
     HostLabelGenerator,
-    StringTable,
 )
 
-
-from cmk.base.plugins.agent_based.utils import if64, interfaces
+from cmk.base.plugins.agent_based.utils import interfaces
+from cmk.base.plugins.agent_based.utils.interfaces import (
+    saveint,
+    Attributes,
+    Counters,
+)
 from typing import (
     Any,
     Dict,
@@ -54,7 +58,7 @@ Section = Union[Dict, List, None]
 UNIFI_DEVICE_STATES = {
     0: "disconnected",
     1: "connected",
-    2: "pending"
+    2: "pending",
 }
 
 UNIFI_DEVICE_TABLE: dict[str, str] = {
@@ -372,12 +376,15 @@ def check_unifi_device(
         yield Result(state=State.OK, summary=f"Satisfaction: %s%%" % int(section.get('satisfaction', 0)))
         yield Metric(name="satisfaction", value=int(section.get('satisfaction', 0)), boundaries=(0, 100))
 
-        if section.get('state') == 1:
+        if _safe_int(section.get('state')) == 1:
             yield Result(state=State.OK,
-                         summary=f"State: %s" % UNIFI_DEVICE_STATES.get(section.get('state'), 'unknown'))
+                         summary=f"State1: %s" % UNIFI_DEVICE_STATES.get(section.get('state'), section.get('state')))
+        elif _safe_int(section.get('state') == 2):
+            yield Result(state=State.WARN,
+                         summary=f"State2: %s" % UNIFI_DEVICE_STATES.get(section.get('state'), section.get('state')))
         else:
             yield Result(state=State.CRIT,
-                         summary=f"State: %s" % UNIFI_DEVICE_STATES.get(section.get('state'), 'unknown'))
+                         summary=f"State0: %s" % UNIFI_DEVICE_STATES.get(section.get('state'), section.get('state')))
 
         if section.get('adopted'):
             yield Result(state=State.OK, summary=f"adopted")
@@ -429,7 +436,7 @@ register.check_plugin(
 # ***************************** UNIFI INTERFACE (Piggyback) *****************************
 
 @dataclass
-class UnifiInterface(interfaces.Interface):
+class UnifiAttributes:
     jumbo: bool = False
     satisfaction: int = 0
     port_poe: bool = False
@@ -445,72 +452,33 @@ class UnifiInterface(interfaces.Interface):
     ip_address: Optional[str] = None
     portconf: Optional[str] = None
 
-    def __post_init__(self) -> None:
-        self.finalize()
+
+@dataclass
+class InterfaceWithCounters:
+    attributes: Attributes
+    counters: Counters
+    unifi: UnifiAttributes
 
 
-def _convert_unifi_counters_if(section: Section | List) -> interfaces.Section:
-    return [
-        UnifiInterface(
-            # index=str(line.get('port_idx')),
-            index=str(line.get('port_idx')) if str(line.get('port_idx')).isdecimal() else str(idx),
-            descr=line.get('name'),
-            alias=line.get('name'),
-            type='6',  # Ethernet
-            # speed=if64.fix_if_64_highspeed(line.get('speed')),
-            speed=line.get('speed', 0) * 1000000,
-            oper_status='1' if line.get('up') else '2',
-            in_octets=_safe_int(line.get('rx_bytes', 0)),
-            in_ucast=_safe_int(line.get('rx_packets', 0)),
-            in_mcast=_safe_int(line.get('rx_multicast', 0)),
-            in_bcast=_safe_int(line.get('rx_broadcast', 0)),
-            in_discards=_safe_int(line.get('rx_dropped', 0)),
-            in_errors=_safe_int(line.get('rx_errors', 0)),
-            out_octets=_safe_int(line.get('tx_bytes', 0)),
-            out_ucast=_safe_int(line.get('tx_packets', 0)),
-            out_mcast=_safe_int(line.get('tx_multicast', 0)),
-            out_bcast=_safe_int(line.get('tx_broadcast', 0)),
-            out_discards=_safe_int(line.get('tx_dropped', 0)),
-            out_errors=_safe_int(line.get('tx_errors', 0)),
-            jumbo=line.get('jumbo', False),
-            satisfaction=_safe_int(line.get('satisfaction', 0)) if line.get('satisfaction') and line.get('up') else 0,
-            port_poe=line.get('port_poe', False),
-            poe_enable=line.get('poe_enable', False),
-            poe_good=line.get('poe_good', False),
-            poe_mode=line.get('poe_mode'),
-            poe_current=float(line.get('poe_current', 0)),
-            poe_voltage=float(line.get('poe_voltage', 0)),
-            poe_power=float(line.get('poe_power', 0)),
-            poe_class=line.get('poe_class'),
-            dot1x_mode=line.get('dot1x_mode'),
-            dot1x_status=line.get('dot1x_status'),
-            ip_address=line.get('ip'),
-            portconf=line.get('portconf'),
-        )
-        for idx, line in enumerate(section)
-    ]
-
-
-def discovery_unifi_network_port_if(  # fixme parsed_section_name
+def discovery_unifi_network_port_if(
         params: Sequence[Mapping[str, Any]],
         section: Section,
 ) -> DiscoveryResult:
     yield from interfaces.discover_interfaces(
         params,
-        _convert_unifi_counters_if(section),
+        section,
     )
 
 
-def check_unifi_network_port_if(  # fixme parsed_section_name
+def check_unifi_network_port_if(
         item: str,
         params: Mapping[str, Any],
-        section: Section,
+        section: interfaces.Section[interfaces.TInterfaceType],
 ) -> CheckResult:
-    _converted_ifs = _convert_unifi_counters_if(section)
     yield from interfaces.check_multiple_interfaces(
         item,
         params,
-        _converted_ifs,
+        section,
     )
 
 
@@ -547,9 +515,63 @@ def inventory_unifi_network_ports(
     )
 
 
+def parse_unifi_if(string_table) -> Section:
+    if string_table:
+        data = json.loads(string_table[0][0])
+
+        return [
+            InterfaceWithCounters(
+                interfaces.Attributes(
+                    index=str(line.get('port_idx')) if str(line.get('port_idx')).isdecimal() else str(idx),
+                    descr=line.get('name'),
+                    type='6',  # Ethernet
+                    speed=line.get('speed', 0) * 1000000,
+                    oper_status='1' if line.get('up') else '2',
+                    out_qlen=None,
+                    alias=line.get('name'),
+                    extra_info=None,
+                ),
+                interfaces.Counters(
+                    in_octets=saveint(line.get('rx_bytes', 0)),
+                    in_ucast=saveint(line.get('rx_packets', 0)),
+                    in_mcast=saveint(line.get('rx_multicast', 0)),
+                    in_bcast=saveint(line.get('rx_broadcast', 0)),
+                    in_disc=saveint(line.get('rx_dropped', 0)),
+                    in_err=saveint(line.get('rx_errors', 0)),
+                    out_octets=saveint(line.get('tx_bytes', 0)),
+                    out_ucast=saveint(line.get('tx_packets', 0)),
+                    out_mcast=saveint(line.get('tx_multicast', 0)),
+                    out_bcast=saveint(line.get('tx_broadcast', 0)),
+                    out_disc=saveint(line.get('tx_dropped', 0)),
+                    out_err=saveint(line.get('tx_errors', 0)),
+                ),
+                UnifiAttributes(
+                    jumbo=line.get('jumbo', False),
+                    satisfaction=_safe_int(line.get('satisfaction', 0)) if line.get('satisfaction') and line.get(
+                        'up') else 0,
+                    port_poe=line.get('port_poe', False),
+                    poe_enable=line.get('poe_enable', False),
+                    poe_good=line.get('poe_good', False),
+                    poe_mode=line.get('poe_mode'),
+                    poe_current=float(line.get('poe_current', 0)),
+                    poe_voltage=float(line.get('poe_voltage', 0)),
+                    poe_power=float(line.get('poe_power', 0)),
+                    poe_class=line.get('poe_class'),
+                    dot1x_mode=line.get('dot1x_mode'),
+                    dot1x_status=line.get('dot1x_status'),
+                    ip_address=line.get('ip'),
+                    portconf=line.get('portconf'),
+                ),
+            )
+            for idx, line in enumerate(data)
+        ]
+
+    return None
+
+
 register.agent_section(
     name="unifi_device_if",
-    parse_function=parse_unifi,
+    parse_function=parse_unifi_if,
 )
 
 register.inventory_plugin(
@@ -560,7 +582,7 @@ register.inventory_plugin(
 register.check_plugin(
     name='unifi_device_if',
     sections=["unifi_device_if"],
-    service_name='Interface %s',
+    service_name='Interface %s Unifi',
     discovery_ruleset_name="inventory_if_rules",
     discovery_ruleset_type=register.RuleSetType.ALL,
     discovery_default_parameters=dict(interfaces.DISCOVERY_DEFAULT_PARAMETERS),
@@ -598,13 +620,13 @@ def discovery_unifi_poe(
         section: Section,
 ) -> DiscoveryResult:
     poe_ports = []
-    for idx, line in enumerate(section):
-        if 'poe_enable' in line:
-            poe_ports.append(line)
+    for idx, port in enumerate(section):
+        if 'poe_enable' in port.unifi:
+            poe_ports.append(port)
 
     yield from interfaces.discover_interfaces(
         params,
-        _convert_unifi_counters_if(poe_ports),
+        poe_ports,
     )
 
 
@@ -613,24 +635,26 @@ def check_unifi_poe(
         params: Mapping[str, Any],
         section: Section,
 ) -> CheckResult:
-    _converted_ifs = _convert_unifi_counters_if(section)
     port = next(filter(
-        lambda x: _safe_int(item, -1) == _safe_int(x.index) or item == x.alias or item == "%s %s" % (x.alias, x.index),
-        _converted_ifs), None)  # fix Service Discovery appearance alias/descr
+        lambda x: _safe_int(item, -1) == _safe_int(
+            x.attributes.index) or item == x.attributes.alias or item == "%s %s" % (
+                      x.attributes.alias, x.attributes.index),
+        section), None)  # fix Service Discovery appearance alias/descr
     if port:
-        if port.port_poe:
-            yield Result(state=State.OK, summary=f"POE: up" if port.poe_enable else 'POE: down')
-            if port.poe_enable:
-                if port.poe_good:
+        unifi = port.unifi
+        if unifi.port_poe:
+            yield Result(state=State.OK, summary=f"POE: up" if unifi.poe_enable else 'POE: down')
+            if unifi.poe_enable:
+                if unifi.poe_good:
                     yield Result(state=State.OK, summary=f"Status: good")
                 else:
                     yield Result(state=State.OK, summary=f"Status: bad")
-                yield Result(state=State.OK, summary=f"mode: %s" % port.poe_mode)
-                if port.poe_power > 0:
-                    yield Result(state=State.OK, summary=f"class: %s" % port.poe_class)
+                yield Result(state=State.OK, summary=f"mode: %s" % unifi.poe_mode)
+                if unifi.poe_power > 0:
+                    yield Result(state=State.OK, summary=f"class: %s" % unifi.poe_class)
 
                     yield from check_levels(
-                        value=port.poe_voltage,
+                        value=unifi.poe_voltage,
                         # levels_upper=params.get("voltage_level_upper"),
                         # levels_lower=params.get("voltage_level_lower"),
                         metric_name="voltage",
@@ -640,7 +664,7 @@ def check_unifi_poe(
                     )
 
                     yield from check_levels(
-                        value=port.poe_current / 1000,
+                        value=unifi.poe_current / 1000,
                         # levels_upper=params.get("current_level_upper"),
                         # levels_lower=params.get("current_level_lower"),
                         metric_name="current",
@@ -651,7 +675,7 @@ def check_unifi_poe(
                     )
 
                     yield from check_levels(
-                        value=port.poe_power,
+                        value=unifi.poe_power,
                         # levels_upper=params.get("power_level_upper"),
                         # levels_lower=params.get("power_level_lower"),
                         metric_name="power",
@@ -684,7 +708,7 @@ def discovery_unifi_info(
 ) -> DiscoveryResult:
     yield from interfaces.discover_interfaces(
         params,
-        _convert_unifi_counters_if(section),
+        section,
     )
 
 
@@ -693,19 +717,19 @@ def check_unifi_info(
         params: Mapping[str, Any],
         section: Section,
 ) -> CheckResult:
-    _converted_ifs = _convert_unifi_counters_if(section)
     port = next(filter(
-        lambda x: _safe_int(item, -1) == _safe_int(x.index) or item == x.alias or item == "%s %s" % (x.alias, x.index),
-        _converted_ifs), None)  # fix Service Discovery appearance alias/descr
+        lambda x: _safe_int(item, -1) == _safe_int(x.attributes.index) or item == x.attributes.alias or
+                  item == "%s %s" % (x.attributes.alias, x.attributes.index), section), None)
     if port:
-        if port.portconf:
-            yield Result(state=State.OK, summary=f"Network: {port.portconf}")
-        if port.jumbo:
+        unifi = port.unifi
+        if unifi.portconf:
+            yield Result(state=State.OK, summary=f"Network: {unifi.portconf}")
+        if unifi.jumbo:
             yield Result(state=State.OK, summary=f"Jumbo-Frames: enabled")
         else:
             yield Result(state=State.OK, summary=f"Jumbo-Frames: disabled")
-        yield Result(state=State.OK, summary=f"Satisfaction: {port.satisfaction}%%")
-        yield Metric(name="satisfaction", value=max(0, port.satisfaction), boundaries=(0, 100))
+        yield Result(state=State.OK, summary=f"Satisfaction: {unifi.satisfaction}%%")
+        yield Metric(name="satisfaction", value=max(0, unifi.satisfaction), boundaries=(0, 100))
 
 
 register.check_plugin(
@@ -731,14 +755,14 @@ def discovery_unifi_wifi(
     wifi_ssid_data = section_unifi_device.get('vap_table')
     if wifi_ssid_data:
         for ssid in wifi_ssid_data:
-            yield Service(item=f"%s_%s" % (ssid.get('radio_name'), ssid.get('essid')))
+            yield Service(item=f"%s_%s" % (ssid.get('name'), ssid.get('essid')))
 
 
 def check_unifi_wifi(item, section_unifi_device, section_unifi_device_users
                      ) -> CheckResult:
     wifi_ssid_data = section_unifi_device.get('vap_table', [])
     for ssid in wifi_ssid_data:
-        if item == f"%s_%s" % (ssid.get('radio_name'), ssid.get('essid')):
+        if item == f"%s_%s" % (ssid.get('name'), ssid.get('essid')):
             yield Result(state=State.OK, summary=f"SSID: %s" % ssid.get('essid'))
             yield Result(state=State.OK, summary=f"State/Up: %s/%s" % (ssid.get('state'), ssid.get('up')))
             yield Result(state=State.OK, summary=f"Usage: %s" % ssid.get('usage'))
