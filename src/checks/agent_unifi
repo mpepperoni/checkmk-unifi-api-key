@@ -13,6 +13,10 @@
 # Author: Frank Baier
 # E-Mail: dev@baier-nt.de
 #
+from cmk.base.config import special_agent_info
+from cmk.base.check_api import passwordstore_get_cmdline
+
+
 def agent_unifi_arguments(params, hostname, ipaddress):
     args = []
 
@@ -20,17 +24,30 @@ def agent_unifi_arguments(params, hostname, ipaddress):
         args += ["--sites", *params['sites']]
 
     args += ["--user",
-        params['user']]
+             params['user']]
 
     args += ["--password",
-        passwordstore_get_cmdline("%s", params["password"])]
+             passwordstore_get_cmdline("%s", params["password"])]
 
     args += ["--port",
-        params['port']]
+             params['port']]
 
     if not params.get("verify_cert", False):
         args.append("--no-cert-check")
 
+    if params.get("udm_pro", False):
+        args.append("--udm_pro")
+
+    if params.get("device_piggyback", False):
+        args.append("--device_piggyback")
+
+    if params.get("user_piggyback", False):
+        args.append("--user_piggyback")
+        args.append(params.get("user_piggyback"))
+
+    if params.get("user_piggyback_name", False):
+        args.append("--user_piggyback_name")
+        args.append(params.get("user_piggyback_name"))
 
     if params.get("controller", False):
         args.append(params.get("controller"))
