@@ -27,7 +27,7 @@ def parse_arguments(argv):
     parser.add_argument('-u', '--user', required=True, help="Username for Unifi controller login")
     parser.add_argument('-p', '--password', required=True, help="Password for Unifi controller login")
     parser.add_argument('-P', '--port', required=True, help="Port for connection to Unifi controller")
-    parser.add_argument('--udm_pro', required=False, default=False,
+    parser.add_argument('--udm_pro', action='store_true',
                         help="Switches to UDM-Pro API endpoints")
     parser.add_argument('-S', '--sites', nargs="+", required=False, default=[],
                         help="Sites to Discover. Use the keyword \"all\" for all sites.")
