@@ -4,6 +4,7 @@
 # (c) 2026 Frank Baier
 # @author Frank Baier <dev@baier-nt.de>
 #from cmk.graphing.v1 import Title
+from cmk.graphing.v1 import translations
 from cmk.graphing.v1.graphs import Graph, MinimalRange, Title
 from cmk.graphing.v1.metrics import Color, DecimalNotation, Metric, Unit
 
@@ -98,4 +99,29 @@ graph_unifi_interface_traffic = Graph(
     title=Title("UniFi interface traffic"),
     simple_lines=["unifi_if_rx_bytes", "unifi_if_tx_bytes"],
     minimal_range=MinimalRange(0, 1),
+)
+
+
+# The interface helper emits Checkmk's compatibility perfdata names.  Translate
+# them to the existing standard interface metrics so no UniFi-specific interface
+# metric or graph definitions are necessary.
+translation_unifi_interfaces = translations.Translation(
+    name="unifi_interfaces",
+    check_commands=[translations.PassiveCheck("unifi_interfaces")],
+    translations={
+        "in": translations.RenameToAndScaleBy("if_in_bps", 8),
+        "inbcast": translations.RenameTo("if_in_bcast"),
+        "indisc": translations.RenameTo("if_in_discards"),
+        "inerr": translations.RenameTo("if_in_errors"),
+        "inmcast": translations.RenameTo("if_in_mcast"),
+        "innucast": translations.RenameTo("if_in_non_unicast"),
+        "inucast": translations.RenameTo("if_in_unicast"),
+        "out": translations.RenameToAndScaleBy("if_out_bps", 8),
+        "outbcast": translations.RenameTo("if_out_bcast"),
+        "outdisc": translations.RenameTo("if_out_discards"),
+        "outerr": translations.RenameTo("if_out_errors"),
+        "outmcast": translations.RenameTo("if_out_mcast"),
+        "outnucast": translations.RenameTo("if_out_non_unicast"),
+        "outucast": translations.RenameTo("if_out_unicast"),
+    },
 )

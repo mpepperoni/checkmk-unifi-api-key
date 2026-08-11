@@ -202,8 +202,8 @@ def check_unifi_device_if(
         yield Result(state=State.OK if port.poe_good is not False else State.WARN, notice=f"PoE: {port.poe_mode or 'unknown'}, {poe_power:.2f} W")
 
 
-check_plugin_unifi_device_if = CheckPlugin(
-    name="unifi_device_if",
+check_plugin_unifi_interfaces = CheckPlugin(
+    name="unifi_interfaces",
     service_name="Unifi Interface %s",
     sections=["unifi_device_if"],
     discovery_function=discover_unifi_device_if,
