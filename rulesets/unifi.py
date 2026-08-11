@@ -13,7 +13,14 @@ def _form_spec_special_agent_unifi() -> Dictionary:
             "password": DictElement(required=True, parameter_form=Password(title=Title("Password"), migrate=migrate_to_password)),
             "port": DictElement(required=False, parameter_form=Integer(title=Title("HTTPS port"), prefill=443, custom_validate=(validators.NetworkPort(),))),
             "udm_pro": DictElement(required=False, parameter_form=BooleanChoice(title=Title("UDM-Pro API"), label=Label("Use UDM-Pro API endpoints"))),
-            "sites": DictElement(required=False, parameter_form=List(title=Title("Sites"), element_template=String(title=Title("Site")), prefill=["all"])),
+            "sites": DictElement(
+                required=False,
+                parameter_form=List(
+                    title=Title("Sites"),
+                    help_text=Help('Leave empty to query all sites. Use "all" explicitly to make this setting visible.'),
+                    element_template=String(title=Title("Site")),
+                ),
+            ),
             "device_piggyback": DictElement(required=False, parameter_form=BooleanChoice(title=Title("Device piggyback"), label=Label("Create piggyback data for UniFi devices"))),
             "user_piggyback": DictElement(required=False, parameter_form=String(title=Title("User piggyback mode"), help_text=Help("Use create_user or create_user_site."))),
             "user_piggyback_name": DictElement(required=False, parameter_form=String(title=Title("User piggyback host name field"), prefill="ip")),
