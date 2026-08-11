@@ -5,11 +5,11 @@
 # @author Frank Baier <dev@baier-nt.de>
 #
 from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric, Result, Service, State
-from .unifi import UniFiDevice, UniFiUsers, as_int
+from .unifi import UnifiDevice, UniFiUsers, as_int
 
 
 def discover_unifi_device_radio(
-        section_unifi_device: UniFiDevice | None,
+        section_unifi_device: UnifiDevice | None,
         section_unifi_device_users: UniFiUsers | None,
 ) -> DiscoveryResult:
     if section_unifi_device is None:
@@ -21,7 +21,7 @@ def discover_unifi_device_radio(
 
 def check_unifi_device_radio(
         item: str,
-        section_unifi_device: UniFiDevice | None,
+        section_unifi_device: UnifiDevice | None,
         section_unifi_device_users: UniFiUsers | None,
 ) -> CheckResult:
     if section_unifi_device is None:

@@ -11,7 +11,7 @@ from cmk.agent_based.v2 import AgentSection, StringTable
 from pydantic import BaseModel, ConfigDict, RootModel
 
 
-class UniFiObject(BaseModel):
+class UnifiObject(BaseModel):
     """API object retaining fields not explicitly modelled by this extension."""
 
     model_config = ConfigDict(extra="allow")
@@ -24,7 +24,7 @@ class UniFiObject(BaseModel):
         return getattr(self, name, (self.model_extra or {}).get(name, default))
 
 
-class UniFiController(UniFiObject):
+class UnifiController(UnifiObject):
     name: str | None = None
     ubnt_device_type: str | None = None
     build: str | None = None
@@ -34,14 +34,14 @@ class UniFiController(UniFiObject):
     unsupported_device_list: list[str] | None = None
 
 
-class UniFiSite(UniFiObject):
+class UnifiSite(UnifiObject):
     name: str | None = None
     desc: str | None = None
-    health: list[UniFiObject] = []
+    health: list[UnifiObject] = []
     num_new_alarms: int | None = None
 
 
-class UniFiDevice(UniFiObject):
+class UnifiDevice(UnifiObject):
     name: str | None = None
     model: str | None = None
     type: str | None = None
@@ -50,27 +50,27 @@ class UniFiDevice(UniFiObject):
     ip: str | None = None
     state: int | str | None = None
     adopted: bool | None = None
-    port_table: list[UniFiObject] = []
-    vap_table: list[UniFiObject] = []
-    radio_table: list[UniFiObject] = []
-    radio_table_stats: list[UniFiObject] = []
+    port_table: list[UnifiObject] = []
+    vap_table: list[UnifiObject] = []
+    radio_table: list[UnifiObject] = []
+    radio_table_stats: list[UnifiObject] = []
 
 
-class UniFiUser(UniFiObject):
+class UnifiUser(UnifiObject):
     hostname: str | None = None
     name: str | None = None
     ip: str | None = None
 
 
-class UniFiInterfaces(RootModel[list[UniFiObject]]):
+class UniFiInterfaces(RootModel[list[UnifiObject]]):
     pass
 
 
-class UniFiSites(RootModel[list[UniFiSite]]):
+class UnifiSites(RootModel[list[UnifiSite]]):
     pass
 
 
-class UniFiUsers(RootModel[list[UniFiUser]]):
+class UniFiUsers(RootModel[list[UnifiUser]]):
     pass
 
 
@@ -98,23 +98,23 @@ def parse_json(
 
 def parse_controller(
         string_table: StringTable,
-) -> UniFiController | None:
+) -> UnifiController | None:
     data = parse_json(string_table)
-    return UniFiController.model_validate(data) if isinstance(data, dict) else None
+    return UnifiController.model_validate(data) if isinstance(data, dict) else None
 
 
 def parse_sites(
         string_table: StringTable,
-) -> UniFiSites | None:
+) -> UnifiSites | None:
     data = parse_json(string_table)
-    return UniFiSites.model_validate(data) if isinstance(data, list) else None
+    return UnifiSites.model_validate(data) if isinstance(data, list) else None
 
 
 def parse_device(
         string_table: StringTable,
-) -> UniFiDevice | None:
+) -> UnifiDevice | None:
     data = parse_json(string_table)
-    return UniFiDevice.model_validate(data) if isinstance(data, dict) else None
+    return UnifiDevice.model_validate(data) if isinstance(data, dict) else None
 
 
 def parse_interfaces(
@@ -133,9 +133,9 @@ def parse_users(
 
 def parse_user(
         string_table: StringTable,
-) -> UniFiUser | None:
+) -> UnifiUser | None:
     data = parse_json(string_table)
-    return UniFiUser.model_validate(data) if isinstance(data, dict) else None
+    return UnifiUser.model_validate(data) if isinstance(data, dict) else None
 
 
 def as_int(

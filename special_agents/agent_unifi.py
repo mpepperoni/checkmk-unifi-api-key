@@ -38,6 +38,7 @@ def parse_arguments(
     parser.add_argument("--device-piggyback", action="store_true")
     parser.add_argument("--user-piggyback", choices=("ip", "hostname", "hostname_domain"))
     parser.add_argument("--user-piggyback-domain")
+    parser.add_argument("--user-piggyback-site", action="store_true")
     parser.add_argument("--no-cert-check", action="store_true")
     args = parser.parse_args(argv)
     if args.user_piggyback == "hostname_domain" and not args.user_piggyback_domain:
@@ -120,6 +121,8 @@ def fetch_site(
     piggyback_header(site_name)
     write_section("unifi_controller", controller[0] if isinstance(controller, list) and controller else {})
     write_section("unifi_site_controller_health", health)
+    if args.user_piggyback_site:
+        write_section("unifi_site_users", users)
     print("<<<<>>>>")
     if args.device_piggyback:
         for device in devices:

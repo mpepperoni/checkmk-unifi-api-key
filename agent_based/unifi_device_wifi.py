@@ -5,7 +5,7 @@
 # @author Frank Baier <dev@baier-nt.de>
 #
 from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric, Result, Service, State
-from .unifi import UniFiDevice, UniFiUsers, as_int
+from .unifi import UnifiDevice, UniFiUsers, as_int
 
 
 def _item(
@@ -15,7 +15,7 @@ def _item(
 
 
 def discover_unifi_device_wifi(
-        section_unifi_device: UniFiDevice | None,
+        section_unifi_device: UnifiDevice | None,
         section_unifi_device_users: UniFiUsers | None,
 ) -> DiscoveryResult:
     if section_unifi_device is None:
@@ -26,7 +26,7 @@ def discover_unifi_device_wifi(
 
 def check_unifi_device_wifi(
         item: str,
-        section_unifi_device: UniFiDevice | None,
+        section_unifi_device: UnifiDevice | None,
         section_unifi_device_users: UniFiUsers | None,
 ) -> CheckResult:
     if section_unifi_device is None:

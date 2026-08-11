@@ -5,11 +5,11 @@
 # @author Frank Baier <dev@baier-nt.de>
 #
 from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric, Result, Service, State
-from .unifi import UniFiSites, as_int
+from .unifi import UnifiSites, as_int
 
 
 def discover_unifi_site_controller_health(
-        section: UniFiSites,
+        section: UnifiSites,
 ) -> DiscoveryResult:
     for health in section.root:
         subsystem = health.value("subsystem")
@@ -19,7 +19,7 @@ def discover_unifi_site_controller_health(
 
 def check_unifi_site_controller_health(
         item: str,
-        section: UniFiSites,
+        section: UnifiSites,
 ) -> CheckResult:
     health = next((entry for entry in section.root if entry.value("subsystem") == item), None)
     if health is None:

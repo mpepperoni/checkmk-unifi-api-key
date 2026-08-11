@@ -5,11 +5,11 @@
 # @author Frank Baier <dev@baier-nt.de>
 #
 from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric, Result, Service, State
-from .unifi import DEVICE_STATES, UniFiDevice, as_float, as_int, model_name
+from .unifi import DEVICE_STATES, UnifiDevice, as_float, as_int, model_name
 
 
 def discover_unifi_device(
-        section: UniFiDevice,
+        section: UnifiDevice,
 ) -> DiscoveryResult:
     yield Service(item="Device")
     if section.value("has_temperature") or section.value("has_fan"):
@@ -18,7 +18,7 @@ def discover_unifi_device(
 
 def check_unifi_device(
         item: str,
-        section: UniFiDevice,
+        section: UnifiDevice,
 ) -> CheckResult:
     if item == "Device":
         state = as_int(section.state, -1)

@@ -5,11 +5,11 @@
 # @author Frank Baier <dev@baier-nt.de>
 #
 from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric, Result, Service, State
-from .unifi import UniFiUser, as_int
+from .unifi import UnifiUser, as_int
 
 
 def discover_unifi_user(
-        section: UniFiUser,
+        section: UnifiUser,
 ) -> DiscoveryResult:
     yield Service(item="Info")
     yield Service(item="Uplink")
@@ -17,7 +17,7 @@ def discover_unifi_user(
 
 def check_unifi_user(
         item: str,
-        section: UniFiUser,
+        section: UnifiUser,
 ) -> CheckResult:
     if item == "Info":
         satisfaction = as_int(section.value("satisfaction"))

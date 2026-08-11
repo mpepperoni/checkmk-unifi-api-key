@@ -5,11 +5,11 @@
 # @author Frank Baier <dev@baier-nt.de>
 #
 from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric, Result, Service, State
-from .unifi import UniFiInterfaces, UniFiObject, as_float, as_int
+from .unifi import UniFiInterfaces, UnifiObject, as_float, as_int
 
 
 def _item(
-        port: UniFiObject,
+        port: UnifiObject,
 ) -> str:
     return str(port.value("port_idx", port.value("name", "unknown")))
 
@@ -17,7 +17,7 @@ def _item(
 def _port(
         item: str,
         section: UniFiInterfaces,
-) -> UniFiObject | None:
+) -> UnifiObject | None:
     return next((port for port in section.root if _item(port) == item), None)
 
 

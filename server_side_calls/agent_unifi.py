@@ -26,6 +26,7 @@ class UniFiParams(BaseModel):
     sites: list[str] | None = None
     device_piggyback: bool = False
     user_piggyback: UserPiggybackParams | None = None
+    user_piggyback_site: bool = False
     no_cert_check: bool = False
 
 
@@ -53,6 +54,8 @@ def agent_unifi_arguments(
         ])
         if user_piggyback_name == "hostname_domain":
             arguments.extend(["--user-piggyback-domain", details.domain])
+    if params.user_piggyback_site:
+        arguments.append("--user-piggyback-site")
     if params.no_cert_check:
         arguments.append("--no-cert-check")
     yield SpecialAgentCommand(command_arguments=arguments)

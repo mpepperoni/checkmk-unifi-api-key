@@ -63,7 +63,7 @@ def _form_spec_special_agent_unifi() -> Dictionary:
             "no_cert_check": DictElement(
                 required=False,
                 parameter_form=FixedValue(
-                    value=False,
+                    value=True,
                     title=Title("Certificate validation"),
                     label=Label("Disable certificate validation"),
                 )
@@ -146,6 +146,15 @@ def _form_spec_special_agent_unifi() -> Dictionary:
                             ),
                         ),
                     },
+                ),
+            ),
+            "user_piggyback_site": DictElement(
+                required=False,
+                group=api_config,
+                parameter_form=FixedValue(
+                    value=True,
+                    title=Title("User piggyback on site host"),
+                    label=Label("Create user services on the UniFi site host"),
                 ),
             ),
         },

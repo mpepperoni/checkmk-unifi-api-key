@@ -5,11 +5,11 @@
 # @author Frank Baier <dev@baier-nt.de>
 #
 from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric, Result, Service, State
-from .unifi import UniFiSite, UniFiSites, as_int
+from .unifi import UnifiSite, UnifiSites, as_int
 
 
 def discover_unifi_controller_sites(
-        section: UniFiSites,
+        section: UnifiSites,
 ) -> DiscoveryResult:
     for site in section.root:
         if site.desc:
@@ -18,7 +18,7 @@ def discover_unifi_controller_sites(
 
 def check_unifi_controller_sites(
         item: str,
-        section: UniFiSites,
+        section: UnifiSites,
 ) -> CheckResult:
     site = next((entry for entry in section.root if entry.desc == item), None)
     if site is None:
@@ -36,7 +36,7 @@ def check_unifi_controller_sites(
 
 check_plugin_unifi_controller_sites = CheckPlugin(
     name="unifi_controller_sites",
-    service_name="UniFi Site %s",
+    service_name="Unifi Site %s",
     sections=["unifi_controller_sites"],
     discovery_function=discover_unifi_controller_sites,
     check_function=check_unifi_controller_sites,

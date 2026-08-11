@@ -5,17 +5,17 @@
 # @author Frank Baier <dev@baier-nt.de>
 #
 from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Result, Service, State
-from .unifi import UniFiController
+from .unifi import UnifiController
 
 
 def discover_unifi_controller(
-        section: UniFiController,
+        section: UnifiController,
 ) -> DiscoveryResult:
     yield Service()
 
 
 def check_unifi_controller(
-        section: UniFiController,
+        section: UnifiController,
 ) -> CheckResult:
     yield Result(state=State.OK, summary=f"Name: {section.name or 'unknown'}")
     yield Result(state=State.OK, summary=f"Type: {section.ubnt_device_type or section.type or 'unknown'}")

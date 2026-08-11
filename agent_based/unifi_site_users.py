@@ -5,11 +5,11 @@
 # @author Frank Baier <dev@baier-nt.de>
 #
 from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric, Result, Service, State
-from .unifi import UniFiUser, UniFiUsers, as_int
+from .unifi import UnifiUser, UniFiUsers, as_int
 
 
 def _item(
-        user: UniFiUser,
+        user: UnifiUser,
 ) -> str:
     return str(user.hostname or user.name or user.value("mac") or user.value("_id", "unknown"))
 
