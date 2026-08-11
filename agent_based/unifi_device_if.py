@@ -13,12 +13,12 @@ from cmk.agent_based.v2 import (
     CheckPlugin,
     CheckResult,
     DiscoveryResult,
-    Metric,
     Result,
     RuleSetType,
     Service,
     ServiceLabel,
     State,
+    check_levels,
 )
 from cmk.plugins.lib import interfaces
 
@@ -180,26 +180,53 @@ def check_unifi_device_if(
         return
     up = bool(port.up)
 
-    # Superseded by interfaces.check_multiple_interfaces():
-    # name = port.name or item
-    # speed = port.speed or 0
-    # yield Result(state=State.OK if up else State.WARN, summary=f"{name}: {'up' if up else 'down'}")
-    # yield Result(state=State.OK, summary=f"Speed: {speed} Mbit/s")
-    # for key, metric, label in (("rx_bytes", "unifi_if_rx_bytes", "RX bytes"), ("tx_bytes", "unifi_if_tx_bytes", "TX bytes"), ("rx_errors", "unifi_if_rx_errors", "RX errors"), ("tx_errors", "unifi_if_tx_errors", "TX errors")):
-    #     value = getattr(port, key) or 0
-    #     yield Metric(metric, value)
-    #     if key.endswith("errors"):
-    #         yield Result(state=State.WARN if value else State.OK, notice=f"{label}: {value}")
-
     satisfaction = port.satisfaction or 0
-    if up and satisfaction:
-        yield Metric("unifi_satisfaction", satisfaction, boundaries=(0, 100))
-        yield Result(state=State.OK, summary=f"Satisfaction: {satisfaction}%")
     yield Result(state=State.OK, notice=f"Jumbo frames: {'enabled' if port.jumbo else 'disabled'}")
-    if port.port_poe:
+    if up:
+        yield from check_levels(
+            satisfaction,
+            metric_name="unifi_satisfaction",
+            label="Satisfaction",
+            render_func=lambda value: f"{value:.0f}%",
+            boundaries=(0, 100),
+        )
+    if port.port_poe and port.poe_enable:
+        yield Result(state=State.OK, notice="PoE:  enabled")
+        yield Result(state=State.OK if port.poe_good is not False else State.WARN, notice=f"PoE: {port.poe_mode or 'unknown'}")
+        if port.poe_class:
+            yield Result(state=State.OK, notice=f"PoE class: {port.poe_class}")
+
+        # voltage
+        if port.poe_voltage is not None:
+            yield from check_levels(
+                port.poe_voltage,
+                metric_name="unifi_poe_voltage",
+                label="PoE voltage",
+                render_func=lambda value: f"{value:.2f} V",
+                notice_only=True,
+            )
+
+        # current
+        if port.poe_current is not None:
+            yield from check_levels(
+                port.poe_current,
+                metric_name="unifi_poe_current",
+                label="PoE current",
+                render_func=lambda value: f"{value:.2f} mA",
+                notice_only=True,
+            )
+
+        # power
         poe_power = port.poe_power or 0.0
-        yield Metric("unifi_poe_power", poe_power)
-        yield Result(state=State.OK if port.poe_good is not False else State.WARN, notice=f"PoE: {port.poe_mode or 'unknown'}, {poe_power:.2f} W")
+        yield from check_levels(
+            poe_power,
+            metric_name="unifi_poe_power",
+            label="PoE power",
+            render_func=lambda value: f"{value:.2f} W",
+        )
+    else:
+        yield Result(state=State.OK, notice="PoE: disabled or no POE-Port")
+
 
 
 check_plugin_unifi_interfaces = CheckPlugin(

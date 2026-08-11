@@ -29,7 +29,7 @@ metric_unifi_clients = Metric(
 )
 metric_unifi_satisfaction = Metric(
     name="unifi_satisfaction",
-    title=Title("WiFi satisfaction"),
+    title=Title("Satisfaction"),
     unit=Unit(DecimalNotation("%")),
     color=Color.LIGHT_GREEN,
 )
@@ -57,47 +57,46 @@ metric_unifi_poe_power = Metric(
     unit=Unit(DecimalNotation("W")),
     color=Color.LIGHT_GREEN,
 )
+metric_unifi_poe_voltage = Metric(
+    name="unifi_poe_voltage",
+    title=Title("PoE voltage"),
+    unit=Unit(DecimalNotation("V")),
+    color=Color.LIGHT_BLUE,
+)
+metric_unifi_poe_current = Metric(
+    name="unifi_poe_current",
+    title=Title("PoE current"),
+    unit=Unit(DecimalNotation("mA")),
+    color=Color.LIGHT_PURPLE,
+)
 metric_unifi_channel = Metric(
     name="unifi_channel",
     title=Title("WiFi channel"),
     unit=Unit(DecimalNotation("")),
     color=Color.LIGHT_BLUE,
 )
-metric_unifi_if_rx_bytes = Metric(
-    name="unifi_if_rx_bytes",
-    title=Title("Received bytes"),
-    unit=Unit(DecimalNotation("B")),
-    color=Color.LIGHT_BLUE,
-)
-metric_unifi_if_tx_bytes = Metric(
-    name="unifi_if_tx_bytes",
-    title=Title("Sent bytes"),
-    unit=Unit(DecimalNotation("B")),
-    color=Color.LIGHT_GREEN,
-)
-metric_unifi_if_rx_errors = Metric(
-    name="unifi_if_rx_errors",
-    title=Title("Receive errors"),
-    unit=Unit(DecimalNotation("")),
-    color=Color.LIGHT_RED,
-)
-metric_unifi_if_tx_errors = Metric(
-    name="unifi_if_tx_errors",
-    title=Title("Transmit errors"),
-    unit=Unit(DecimalNotation("")),
-    color=Color.LIGHT_RED,
-)
-
 graph_unifi_users = Graph(
     name="unifi_users",
     title=Title("UniFi clients"),
     simple_lines=["unifi_users", "unifi_guests"],
     minimal_range=MinimalRange(0, 1),
 )
-graph_unifi_interface_traffic = Graph(
-    name="unifi_interface_traffic",
-    title=Title("UniFi interface traffic"),
-    simple_lines=["unifi_if_rx_bytes", "unifi_if_tx_bytes"],
+graph_unifi_poe_power = Graph(
+    name="unifi_poe_power",
+    title=Title("PoE power"),
+    simple_lines=["unifi_poe_power"],
+    minimal_range=MinimalRange(0, 1),
+)
+graph_unifi_poe_voltage = Graph(
+    name="unifi_poe_voltage",
+    title=Title("PoE voltage"),
+    simple_lines=["unifi_poe_voltage"],
+    minimal_range=MinimalRange(0, 1),
+)
+graph_unifi_poe_current = Graph(
+    name="unifi_poe_current",
+    title=Title("PoE current"),
+    simple_lines=["unifi_poe_current"],
     minimal_range=MinimalRange(0, 1),
 )
 

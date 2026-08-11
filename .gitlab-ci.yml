@@ -1,7 +1,7 @@
 variables:
   PROJECT_AUTHOR: "Frank Baier <dev@baier-nt.de>"
   #PROJECT_AUTHOR: "${CI_COMMIT_AUTHOR}"
-  CMK_MIN_REQUIRED: "2.4.0p0"
+  CMK_MIN_REQUIRED: "2.4.0p19"
   #CMK_USABLE_UNTIL: "2.5.0b1"
   CHECKMK_COMPAT: "2.4,2.5"
   CHECKMK_TYPE: "special-agent"
