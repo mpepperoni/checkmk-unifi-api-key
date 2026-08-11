@@ -2,14 +2,19 @@ from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric
 from .unifi import UniFiSites, as_int
 
 
-def discover_unifi_site_controller_health(section: UniFiSites) -> DiscoveryResult:
+def discover_unifi_site_controller_health(
+        section: UniFiSites,
+) -> DiscoveryResult:
     for health in section.root:
         subsystem = health.value("subsystem")
         if subsystem and health.value("status") != "unknown":
             yield Service(item=str(subsystem))
 
 
-def check_unifi_site_controller_health(item: str, section: UniFiSites) -> CheckResult:
+def check_unifi_site_controller_health(
+        item: str,
+        section: UniFiSites,
+) -> CheckResult:
     health = next((entry for entry in section.root if entry.value("subsystem") == item), None)
     if health is None:
         return
@@ -26,6 +31,9 @@ def check_unifi_site_controller_health(item: str, section: UniFiSites) -> CheckR
 
 
 check_plugin_unifi_site_controller_health = CheckPlugin(
-    name="unifi_site_controller_health", service_name="UniFi Health %s", sections=["unifi_site_controller_health"],
-    discovery_function=discover_unifi_site_controller_health, check_function=check_unifi_site_controller_health,
+    name="unifi_site_controller_health",
+    service_name="UniFi Health %s",
+    sections=["unifi_site_controller_health"],
+    discovery_function=discover_unifi_site_controller_health,
+    check_function=check_unifi_site_controller_health,
 )

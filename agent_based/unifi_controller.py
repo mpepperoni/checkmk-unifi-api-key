@@ -2,11 +2,15 @@ from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Result
 from .unifi import UniFiController
 
 
-def discover_unifi_controller(section: UniFiController) -> DiscoveryResult:
+def discover_unifi_controller(
+        section: UniFiController,
+) -> DiscoveryResult:
     yield Service()
 
 
-def check_unifi_controller(section: UniFiController) -> CheckResult:
+def check_unifi_controller(
+        section: UniFiController,
+) -> CheckResult:
     yield Result(state=State.OK, summary=f"Name: {section.name or 'unknown'}")
     yield Result(state=State.OK, summary=f"Type: {section.ubnt_device_type or section.type or 'unknown'}")
     yield Result(state=State.OK, summary=f"Build: {section.build or 'unknown'}")
@@ -20,6 +24,9 @@ def check_unifi_controller(section: UniFiController) -> CheckResult:
 
 
 check_plugin_unifi_controller = CheckPlugin(
-    name="unifi_controller", service_name="UniFi Controller", sections=["unifi_controller"],
-    discovery_function=discover_unifi_controller, check_function=check_unifi_controller,
+    name="unifi_controller",
+    service_name="UniFi Controller",
+    sections=["unifi_controller"],
+    discovery_function=discover_unifi_controller,
+    check_function=check_unifi_controller,
 )

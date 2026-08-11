@@ -20,7 +20,9 @@ def main() -> int:
     return special_agent_main(parse_arguments, run_agent)
 
 
-def parse_arguments(argv: Sequence[str]) -> argparse.Namespace:
+def parse_arguments(
+        argv: Sequence[str],
+) -> argparse.Namespace:
     parser = create_default_argument_parser(description=__doc__)
     parser.add_argument("--hostname", required=True)
     parser.add_argument("--username", required=True)
@@ -37,19 +39,27 @@ def parse_arguments(argv: Sequence[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def password(args: argparse.Namespace) -> str:
+def password(
+        args: argparse.Namespace,
+) -> str:
     if args.password:
         return args.password
     password_id, password_file = args.password_ref.split(":", maxsplit=1)
     return password_store.lookup(pathlib.Path(password_file), password_id)
 
 
-def write_section(name: str, data: Any) -> None:
+def write_section(
+        name: str,
+        data: Any,
+) -> None:
     with SectionWriter(name) as writer:
         writer.append_json(data)
 
 
-def request(session: requests.Session, url: str) -> Any:
+def request(
+        session: requests.Session,
+        url: str,
+) -> Any:
     try:
         response = session.get(url, timeout=REQUEST_TIMEOUT_SECONDS)
         response.raise_for_status()
@@ -61,11 +71,18 @@ def request(session: requests.Session, url: str) -> Any:
     return payload["data"]
 
 
-def piggyback_header(hostname: str) -> None:
+def piggyback_header(
+        hostname: str,
+) -> None:
     print(f"<<<<{hostname}>>>>")
 
 
-def fetch_site(session: requests.Session, api_url: str, site: dict[str, Any], args: argparse.Namespace) -> None:
+def fetch_site(
+        session: requests.Session,
+        api_url: str,
+        site: dict[str, Any],
+        args: argparse.Namespace,
+) -> None:
     site_id = site.get("name")
     site_name = str(site.get("desc") or site_id)
     if not site_id:
@@ -97,7 +114,9 @@ def fetch_site(session: requests.Session, api_url: str, site: dict[str, Any], ar
             print("<<<<>>>>")
 
 
-def run_agent(args: Args) -> int:
+def run_agent(
+        args: Args,
+) -> int:
     parsed_args = args
     verify = not parsed_args.no_cert_check
     if not verify:

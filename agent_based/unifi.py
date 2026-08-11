@@ -14,7 +14,11 @@ class UniFiObject(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    def value(self, name: str, default: Any = None) -> Any:
+    def value(
+            self,
+            name: str,
+            default: Any = None,
+    ) -> Any:
         return getattr(self, name, (self.model_extra or {}).get(name, default))
 
 
@@ -79,7 +83,9 @@ DEVICE_MODELS = {
 }
 
 
-def parse_json(string_table: StringTable) -> Any | None:
+def parse_json(
+        string_table: StringTable,
+) -> Any | None:
     if not string_table or not string_table[0]:
         return None
     try:
@@ -88,59 +94,103 @@ def parse_json(string_table: StringTable) -> Any | None:
         return None
 
 
-def parse_controller(string_table: StringTable) -> UniFiController | None:
+def parse_controller(
+        string_table: StringTable,
+) -> UniFiController | None:
     data = parse_json(string_table)
     return UniFiController.model_validate(data) if isinstance(data, dict) else None
 
 
-def parse_sites(string_table: StringTable) -> UniFiSites | None:
+def parse_sites(
+        string_table: StringTable,
+) -> UniFiSites | None:
     data = parse_json(string_table)
     return UniFiSites.model_validate(data) if isinstance(data, list) else None
 
 
-def parse_device(string_table: StringTable) -> UniFiDevice | None:
+def parse_device(
+        string_table: StringTable,
+) -> UniFiDevice | None:
     data = parse_json(string_table)
     return UniFiDevice.model_validate(data) if isinstance(data, dict) else None
 
 
-def parse_interfaces(string_table: StringTable) -> UniFiInterfaces | None:
+def parse_interfaces(
+        string_table: StringTable,
+) -> UniFiInterfaces | None:
     data = parse_json(string_table)
     return UniFiInterfaces.model_validate(data) if isinstance(data, list) else None
 
 
-def parse_users(string_table: StringTable) -> UniFiUsers | None:
+def parse_users(
+        string_table: StringTable,
+) -> UniFiUsers | None:
     data = parse_json(string_table)
     return UniFiUsers.model_validate(data) if isinstance(data, list) else None
 
 
-def parse_user(string_table: StringTable) -> UniFiUser | None:
+def parse_user(
+        string_table: StringTable,
+) -> UniFiUser | None:
     data = parse_json(string_table)
     return UniFiUser.model_validate(data) if isinstance(data, dict) else None
 
 
-def as_int(value: Any, default: int = 0) -> int:
+def as_int(
+        value: Any,
+        default: int = 0,
+) -> int:
     try:
         return int(value)
     except (TypeError, ValueError):
         return default
 
 
-def as_float(value: Any, default: float = 0.0) -> float:
+def as_float(
+        value: Any,
+        default: float = 0.0,
+) -> float:
     try:
         return float(value)
     except (TypeError, ValueError):
         return default
 
 
-def model_name(model: str | None) -> str:
+def model_name(
+        model: str | None,
+) -> str:
     return DEVICE_MODELS.get(model or "", model or "unknown")
 
 
-agent_section_unifi_controller = AgentSection(name="unifi_controller", parse_function=parse_controller)
-agent_section_unifi_controller_sites = AgentSection(name="unifi_controller_sites", parse_function=parse_sites)
-agent_section_unifi_site_controller_health = AgentSection(name="unifi_site_controller_health", parse_function=parse_sites)
-agent_section_unifi_device = AgentSection(name="unifi_device", parse_function=parse_device)
-agent_section_unifi_device_if = AgentSection(name="unifi_device_if", parse_function=parse_interfaces)
-agent_section_unifi_device_users = AgentSection(name="unifi_device_users", parse_function=parse_users)
-agent_section_unifi_site_users = AgentSection(name="unifi_site_users", parse_function=parse_users)
-agent_section_unifi_user = AgentSection(name="unifi_user", parse_function=parse_user)
+agent_section_unifi_controller = AgentSection(
+    name="unifi_controller",
+    parse_function=parse_controller,
+)
+agent_section_unifi_controller_sites = AgentSection(
+    name="unifi_controller_sites",
+    parse_function=parse_sites,
+)
+agent_section_unifi_site_controller_health = AgentSection(
+    name="unifi_site_controller_health",
+    parse_function=parse_sites,
+)
+agent_section_unifi_device = AgentSection(
+    name="unifi_device",
+    parse_function=parse_device,
+)
+agent_section_unifi_device_if = AgentSection(
+    name="unifi_device_if",
+    parse_function=parse_interfaces,
+)
+agent_section_unifi_device_users = AgentSection(
+    name="unifi_device_users",
+    parse_function=parse_users,
+)
+agent_section_unifi_site_users = AgentSection(
+    name="unifi_site_users",
+    parse_function=parse_users,
+)
+agent_section_unifi_user = AgentSection(
+    name="unifi_user",
+    parse_function=parse_user,
+)

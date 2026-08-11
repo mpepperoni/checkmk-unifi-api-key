@@ -2,16 +2,23 @@ from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric
 from .unifi import UniFiUser, UniFiUsers, as_int
 
 
-def _item(user: UniFiUser) -> str:
+def _item(
+        user: UniFiUser,
+) -> str:
     return str(user.hostname or user.name or user.value("mac") or user.value("_id", "unknown"))
 
 
-def discover_unifi_site_users(section: UniFiUsers) -> DiscoveryResult:
+def discover_unifi_site_users(
+        section: UniFiUsers,
+) -> DiscoveryResult:
     for user in section.root:
         yield Service(item=_item(user))
 
 
-def check_unifi_site_users(item: str, section: UniFiUsers) -> CheckResult:
+def check_unifi_site_users(
+        item: str,
+        section: UniFiUsers
+) -> CheckResult:
     user = next((entry for entry in section.root if _item(entry) == item), None)
     if user is None:
         return
@@ -23,6 +30,9 @@ def check_unifi_site_users(item: str, section: UniFiUsers) -> CheckResult:
 
 
 check_plugin_unifi_site_users = CheckPlugin(
-    name="unifi_site_users", service_name="UniFi Client %s", sections=["unifi_site_users"],
-    discovery_function=discover_unifi_site_users, check_function=check_unifi_site_users,
+    name="unifi_site_users",
+    service_name="UniFi Client %s",
+    sections=["unifi_site_users"],
+    discovery_function=discover_unifi_site_users,
+    check_function=check_unifi_site_users,
 )

@@ -2,13 +2,18 @@ from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric
 from .unifi import DEVICE_STATES, UniFiDevice, as_float, as_int, model_name
 
 
-def discover_unifi_device(section: UniFiDevice) -> DiscoveryResult:
+def discover_unifi_device(
+        section: UniFiDevice,
+) -> DiscoveryResult:
     yield Service(item="Device")
     if section.value("has_temperature") or section.value("has_fan"):
         yield Service(item="Environment")
 
 
-def check_unifi_device(item: str, section: UniFiDevice) -> CheckResult:
+def check_unifi_device(
+        item: str,
+        section: UniFiDevice,
+) -> CheckResult:
     if item == "Device":
         state = as_int(section.state, -1)
         yield Result(state=State.OK if state == 1 else State.WARN if state == 2 else State.CRIT, summary=f"State: {DEVICE_STATES.get(state, 'unknown')}")
@@ -32,6 +37,9 @@ def check_unifi_device(item: str, section: UniFiDevice) -> CheckResult:
 
 
 check_plugin_unifi_device = CheckPlugin(
-    name="unifi_device", service_name="UniFi %s", sections=["unifi_device"],
-    discovery_function=discover_unifi_device, check_function=check_unifi_device,
+    name="unifi_device",
+    service_name="UniFi %s",
+    sections=["unifi_device"],
+    discovery_function=discover_unifi_device,
+    check_function=check_unifi_device,
 )

@@ -29,4 +29,9 @@ def _form_spec_special_agent_unifi() -> Dictionary:
     )
 
 
-rule_spec_unifi = SpecialAgent(name="unifi", title=Title("UniFi connection parameters"), topic=Topic.NETWORKING, parameter_form=_form_spec_special_agent_unifi)
+rule_spec_unifi = SpecialAgent(
+    name="unifi",
+    title=Title("UniFi connection parameters"),
+    topic=Topic.NETWORKING,
+    parameter_form=_form_spec_special_agent_unifi,
+)

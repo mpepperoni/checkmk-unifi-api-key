@@ -2,7 +2,9 @@ from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric
 from .unifi import UniFiDevice, UniFiUsers, as_int
 
 
-def _item(vap) -> str:
+def _item(
+        vap,
+) -> str:
     return f"{vap.value('name', 'unknown')}_{vap.value('essid', 'unknown')}"
 
 
@@ -16,7 +18,11 @@ def discover_unifi_device_wifi(
         yield Service(item=_item(vap))
 
 
-def check_unifi_device_wifi(item: str, section_unifi_device: UniFiDevice | None, section_unifi_device_users: UniFiUsers | None) -> CheckResult:
+def check_unifi_device_wifi(
+        item: str,
+        section_unifi_device: UniFiDevice | None,
+        section_unifi_device_users: UniFiUsers | None,
+) -> CheckResult:
     if section_unifi_device is None:
         return
     vap = next((entry for entry in section_unifi_device.vap_table if _item(entry) == item), None)
@@ -35,6 +41,9 @@ def check_unifi_device_wifi(item: str, section_unifi_device: UniFiDevice | None,
 
 
 check_plugin_unifi_device_wifi = CheckPlugin(
-    name="unifi_device_wifi", service_name="UniFi SSID %s", sections=["unifi_device", "unifi_device_users"],
-    discovery_function=discover_unifi_device_wifi, check_function=check_unifi_device_wifi,
+    name="unifi_device_wifi",
+    service_name="UniFi SSID %s",
+    sections=["unifi_device", "unifi_device_users"],
+    discovery_function=discover_unifi_device_wifi,
+    check_function=check_unifi_device_wifi,
 )

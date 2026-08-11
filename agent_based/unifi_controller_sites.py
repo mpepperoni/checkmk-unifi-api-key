@@ -2,13 +2,18 @@ from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric
 from .unifi import UniFiSite, UniFiSites, as_int
 
 
-def discover_unifi_controller_sites(section: UniFiSites) -> DiscoveryResult:
+def discover_unifi_controller_sites(
+        section: UniFiSites,
+) -> DiscoveryResult:
     for site in section.root:
         if site.desc:
             yield Service(item=site.desc)
 
 
-def check_unifi_controller_sites(item: str, section: UniFiSites) -> CheckResult:
+def check_unifi_controller_sites(
+        item: str,
+        section: UniFiSites,
+) -> CheckResult:
     site = next((entry for entry in section.root if entry.desc == item), None)
     if site is None:
         return
@@ -24,6 +29,9 @@ def check_unifi_controller_sites(item: str, section: UniFiSites) -> CheckResult:
 
 
 check_plugin_unifi_controller_sites = CheckPlugin(
-    name="unifi_controller_sites", service_name="UniFi Site %s", sections=["unifi_controller_sites"],
-    discovery_function=discover_unifi_controller_sites, check_function=check_unifi_controller_sites,
+    name="unifi_controller_sites",
+    service_name="UniFi Site %s",
+    sections=["unifi_controller_sites"],
+    discovery_function=discover_unifi_controller_sites,
+    check_function=check_unifi_controller_sites,
 )

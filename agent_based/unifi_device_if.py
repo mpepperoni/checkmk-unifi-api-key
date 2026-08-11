@@ -2,20 +2,30 @@ from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric
 from .unifi import UniFiInterfaces, UniFiObject, as_float, as_int
 
 
-def _item(port: UniFiObject) -> str:
+def _item(
+        port: UniFiObject,
+) -> str:
     return str(port.value("port_idx", port.value("name", "unknown")))
 
 
-def _port(item: str, section: UniFiInterfaces) -> UniFiObject | None:
+def _port(
+        item: str,
+        section: UniFiInterfaces,
+) -> UniFiObject | None:
     return next((port for port in section.root if _item(port) == item), None)
 
 
-def discover_unifi_device_if(section: UniFiInterfaces) -> DiscoveryResult:
+def discover_unifi_device_if(
+        section: UniFiInterfaces,
+) -> DiscoveryResult:
     for port in section.root:
         yield Service(item=_item(port))
 
 
-def check_unifi_device_if(item: str, section: UniFiInterfaces) -> CheckResult:
+def check_unifi_device_if(
+        item: str,
+        section: UniFiInterfaces,
+) -> CheckResult:
     port = _port(item, section)
     if port is None:
         return
@@ -43,6 +53,9 @@ def check_unifi_device_if(item: str, section: UniFiInterfaces) -> CheckResult:
 
 
 check_plugin_unifi_device_if = CheckPlugin(
-    name="unifi_device_if", service_name="UniFi Interface %s", sections=["unifi_device_if"],
-    discovery_function=discover_unifi_device_if, check_function=check_unifi_device_if,
+    name="unifi_device_if",
+    service_name="UniFi Interface %s",
+    sections=["unifi_device_if"],
+    discovery_function=discover_unifi_device_if,
+    check_function=check_unifi_device_if,
 )

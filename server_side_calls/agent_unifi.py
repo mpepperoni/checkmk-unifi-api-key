@@ -16,7 +16,10 @@ class UniFiParams(BaseModel):
     no_cert_check: bool = False
 
 
-def agent_unifi_arguments(params: UniFiParams, _host_config: HostConfig) -> Iterable[SpecialAgentCommand]:
+def agent_unifi_arguments(
+        params: UniFiParams,
+        _host_config: HostConfig,
+) -> Iterable[SpecialAgentCommand]:
     if not params.hostname or not params.username or params.password is None:
         return
     arguments: list[str | Secret] = ["--hostname", params.hostname, "--username", params.username, "--password-ref", params.password, "--port", str(params.port)]
@@ -33,4 +36,8 @@ def agent_unifi_arguments(params: UniFiParams, _host_config: HostConfig) -> Iter
     yield SpecialAgentCommand(command_arguments=arguments)
 
 
-special_agent_unifi = SpecialAgentConfig(name="unifi", parameter_parser=UniFiParams.model_validate, commands_function=agent_unifi_arguments)
+special_agent_unifi = SpecialAgentConfig(
+    name="unifi",
+    parameter_parser=UniFiParams.model_validate,
+    commands_function=agent_unifi_arguments,
+)

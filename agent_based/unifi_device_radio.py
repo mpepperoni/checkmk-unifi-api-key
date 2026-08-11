@@ -13,7 +13,11 @@ def discover_unifi_device_radio(
             yield Service(item=str(radio.value("name")))
 
 
-def check_unifi_device_radio(item: str, section_unifi_device: UniFiDevice | None, section_unifi_device_users: UniFiUsers | None) -> CheckResult:
+def check_unifi_device_radio(
+        item: str,
+        section_unifi_device: UniFiDevice | None,
+        section_unifi_device_users: UniFiUsers | None,
+) -> CheckResult:
     if section_unifi_device is None:
         return
     radio = next((entry for entry in section_unifi_device.radio_table if entry.value("name") == item), None)
@@ -37,6 +41,9 @@ def check_unifi_device_radio(item: str, section_unifi_device: UniFiDevice | None
 
 
 check_plugin_unifi_device_radio = CheckPlugin(
-    name="unifi_device_radio", service_name="UniFi Radio %s", sections=["unifi_device", "unifi_device_users"],
-    discovery_function=discover_unifi_device_radio, check_function=check_unifi_device_radio,
+    name="unifi_device_radio",
+    service_name="UniFi Radio %s",
+    sections=["unifi_device", "unifi_device_users"],
+    discovery_function=discover_unifi_device_radio,
+    check_function=check_unifi_device_radio,
 )
