@@ -36,7 +36,7 @@ def check_unifi_device_poe(
     section: UnifiDevice,
 ) -> CheckResult:
 
-    if used_power := section.total_used_power is not None:
+    if (used_power := section.total_used_power) is not None:
         yield from check_levels(
             used_power,
             levels_upper=params.get("poe_total_used_power_levels_upper"),
@@ -56,7 +56,7 @@ def check_unifi_device_poe(
 
     maxpower = max_power or max_effective_power
 
-    if maxpower is not None and maxpower > 0:
+    if maxpower is not None and maxpower > 0 and used_power is not None:
         percentage = used_power / maxpower * 100
         yield from check_levels(
             percentage,

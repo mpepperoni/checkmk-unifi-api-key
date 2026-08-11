@@ -34,7 +34,7 @@ When you change the selected sites, the host naming mode, or interface naming ru
 | Individual client piggyback | Create a separate piggyback host for every UniFi client. |
 | Client host naming | Use the client IP address, hostname, or hostname plus domain. |
 
-TLS certificate validation is currently disabled by the special agent. Use a trusted management network and restrict access to the UniFi controller accordingly.
+TLS certificate validation is enabled by default. The connection rule can disable it for controllers with a self-signed certificate. Enable this option only when you trust the network path and the controller.
 
 ## Hosts created by the agent
 
@@ -74,6 +74,7 @@ With device piggyback enabled, the agent creates device hosts. Typical services 
 - **UniFi Radio**: Radio configuration and status for access points.
 - **UniFi SSID**: SSID availability for access points.
 - **Unifi Interface _port_**: Switch-port state, traffic and port details.
+- **UniFi PoE budget**: Total PoE consumption and the reported PoE budget, when the device reports PoE power data.
 
 Device adoption problems create warnings. A device state reported as failed creates a critical state. An overheating environment state is critical.
 
@@ -111,6 +112,33 @@ For an enabled PoE port, the interface service also shows:
 
 Power, voltage and current are emitted as metrics through `check_levels`. They are available for graphing and can be controlled with Checkmk threshold rules where applicable. A port without enabled PoE reports an informational message only.
 
+### Device PoE budget
+
+The **UniFi PoE budget** service is discovered when the UniFi device reports total PoE usage. It shows and stores these values:
+
+- Total PoE power used
+- Maximum PoE power
+- Maximum effective PoE power
+- PoE budget usage in percent: `total_used_power / total_max_power`
+
+The check has two independent optional upper-level settings in **UniFi PoE budget levels**:
+
+- **Upper total PoE power usage**: Thresholds in W. Disabled by default.
+- **Upper total PoE budget usage**: Thresholds in percent. Defaults to WARN at 95% and CRIT at 98%.
+
+If the controller does not report `total_max_power`, the service still shows the available power values but cannot calculate the percentage. It becomes UNKNOWN so that the missing budget information is visible.
+
+## Hardware and network inventory
+
+The extension writes hardware and network inventory data for device piggyback hosts.
+
+- **Hardware / System**: Manufacturer, device model, serial number, device name and device type.
+- **Software / Operating system**: UniFi firmware version and device type.
+- **Networking / Interfaces**: Standard Checkmk interface inventory with index, description, alias, administrative and operational state, speed and Ethernet port type.
+- **Networking / UniFi switch ports**: UniFi-specific port configuration, such as autonegotiation, duplex, STP, PoE capability, 802.1X and network assignment.
+
+UniFi does not provide every IF-MIB value in the used API response. In particular, the extension does not invent a switch-port MAC address, resolved VLAN ID, or LLDP/CDP neighbour when the controller has not supplied it.
+
 ## Individual client services
 
 When individual client piggyback is enabled, Checkmk creates one host for each client. The host name is configured in the connection rule.
@@ -128,8 +156,9 @@ The following UniFi-specific metrics are provided when the matching data is avai
 - Wi-Fi signal, noise and channel
 - Device temperature
 - PoE power, voltage and current
+- Total PoE power used, total budget, effective budget and budget usage
 
-PoE power, voltage and current have dedicated graphs. Other values use their matching Checkmk metric definitions.
+PoE port values and PoE budget values have dedicated graphs. Other values use their matching Checkmk metric definitions.
 
 ## Troubleshooting
 
@@ -158,7 +187,7 @@ The interface check translates its legacy counter names to Checkmk's standard in
 
 ## Security notes
 
-Create a dedicated UniFi account with read-only access where possible. Store credentials only in the Checkmk rule configuration and limit network access to the UniFi controller. Because certificate validation is disabled by the special agent, use a trusted network path or protect the connection with suitable network controls.
+Create a dedicated UniFi account with read-only access where possible. Store credentials only in the Checkmk rule configuration and limit network access to the UniFi controller. Keep TLS certificate validation enabled whenever possible. If it must be disabled for a self-signed certificate, use a trusted network path and suitable network controls.
 
 ## License
 
