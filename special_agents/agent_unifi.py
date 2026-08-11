@@ -1,12 +1,15 @@
-"""Special agent for UniFi Network controllers."""
+#!/usr/bin/env python3
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# (c) 2026 Frank Baier
+# @author Frank Baier <dev@baier-nt.de>
+#
 from __future__ import annotations
-
 import argparse
 import pathlib
 import sys
 from collections.abc import Sequence
 from typing import Any
-
 import requests
 import urllib3
 from cmk.special_agents.v0_unstable.agent_common import SectionWriter, special_agent_main

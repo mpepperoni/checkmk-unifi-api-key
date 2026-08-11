@@ -1,10 +1,12 @@
-"""Shared data models and parsers for the UniFi special agent."""
-
+#!/usr/bin/env python3
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# (c) 2026 Frank Baier
+# @author Frank Baier <dev@baier-nt.de>
+#
 from __future__ import annotations
-
 import json
 from typing import Any
-
 from cmk.agent_based.v2 import AgentSection, StringTable
 from pydantic import BaseModel, ConfigDict, RootModel
 

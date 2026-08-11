@@ -1,36 +1,57 @@
 from collections.abc import Iterable
+from typing import Literal
+
 from pydantic import BaseModel
+
 from cmk.server_side_calls.v1 import HostConfig, Secret, SpecialAgentCommand, SpecialAgentConfig
+
+
+class UserPiggybackHostnameDomainParams(BaseModel):
+    domain: str
+
+
+class UserPiggybackParams(BaseModel):
+    user_piggyback_name: (
+        tuple[Literal["ip", "hostname"], None]
+        | tuple[Literal["hostname_domain"], UserPiggybackHostnameDomainParams]
+    ) = ("ip", None)
 
 
 class UniFiParams(BaseModel):
     hostname: str | None = None
-    username: str | None = None
-    password: Secret | None = None
+    username: str
+    password: Secret
     port: int = 443
     udm_pro: bool = False
-    sites: list[str] = ["all"]
+    sites: list[str] | None = None
     device_piggyback: bool = False
-    user_piggyback: str | None = None
-    user_piggyback_name: str = "ip"
+    user_piggyback: UserPiggybackParams | None = None
     no_cert_check: bool = False
 
 
 def agent_unifi_arguments(
         params: UniFiParams,
-        _host_config: HostConfig,
+        host_config: HostConfig,
 ) -> Iterable[SpecialAgentCommand]:
-    if not params.hostname or not params.username or params.password is None:
-        return
-    arguments: list[str | Secret] = ["--hostname", params.hostname, "--username", params.username, "--password-ref", params.password, "--port", str(params.port)]
+    hostname = params.hostname or host_config.primary_ip_config.address
+    arguments: list[str | Secret] = [
+        "--hostname", hostname,
+        "--username", params.username,
+        "--password-ref", params.password,
+        "--port", str(params.port),
+    ]
     if params.udm_pro:
         arguments.append("--udm-pro")
-    if params.sites:
+    if params.sites is not None:
         arguments.extend(["--sites", *params.sites])
     if params.device_piggyback:
         arguments.append("--device-piggyback")
-    if params.user_piggyback:
-        arguments.extend(["--user-piggyback", params.user_piggyback, "--user-piggyback-name", params.user_piggyback_name])
+    if params.user_piggyback is not None:
+        user_piggyback_name, _details = params.user_piggyback.user_piggyback_name
+        arguments.extend([
+            "--user-piggyback", "create_user",
+            "--user-piggyback-name", user_piggyback_name,
+        ])
     if params.no_cert_check:
         arguments.append("--no-cert-check")
     yield SpecialAgentCommand(command_arguments=arguments)

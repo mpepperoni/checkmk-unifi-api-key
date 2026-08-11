@@ -1,6 +1,10 @@
-"""Metrics and graphs emitted by the UniFi checks."""
-from cmk.graphing.v1 import Title
-from cmk.graphing.v1.graphs import Graph, MinimalRange
+#!/usr/bin/env python3
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# (c) 2026 Frank Baier
+# @author Frank Baier <dev@baier-nt.de>
+#from cmk.graphing.v1 import Title
+from cmk.graphing.v1.graphs import Graph, MinimalRange, Title
 from cmk.graphing.v1.metrics import Color, DecimalNotation, Metric, Unit
 
 

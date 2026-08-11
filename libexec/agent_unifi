@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# (c) 2026 Frank Baier
+# @author Frank Baier <dev@baier-nt.de>
+#
 import sys
-
 from cmk_addons.plugins.unifi.special_agents.agent_unifi import main
 
 

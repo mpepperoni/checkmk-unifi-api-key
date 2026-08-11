@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# (c) 2026 Frank Baier
+# @author Frank Baier <dev@baier-nt.de>
+#
 from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric, Result, Service, State
 from .unifi import UniFiSite, UniFiSites, as_int
 
