@@ -34,7 +34,7 @@ def agent_unifi_arguments(
         params: UniFiParams,
         host_config: HostConfig,
 ) -> Iterable[SpecialAgentCommand]:
-    hostname = params.hostname or host_config.primary_ip_config.address
+    hostname = params.hostname or host_config.name # host_config.primary_ip_config.address
     arguments: list[str | Secret] = [
         "--hostname", hostname,
         "--username", params.username,

@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from typing import Any
 from cmk.agent_based.v2 import AgentSection, StringTable
-from pydantic import BaseModel, ConfigDict, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
 class UnifiObject(BaseModel):
@@ -62,7 +62,73 @@ class UnifiUser(UnifiObject):
     ip: str | None = None
 
 
-class UniFiInterfaces(RootModel[list[UnifiObject]]):
+class UnifiLastConnection(UnifiObject):
+    connected: bool | None = None
+    connected_at: int | None = None
+    ip: str | None = None
+    last_seen: int | None = None
+    mac: str | None = None
+
+
+class UnifiInterface(UnifiObject):
+    """A physical UniFi switch port as exposed by the controller API."""
+
+    aggregated_by: bool | None = None
+    anomalies: int | None = None
+    autoneg: bool | None = None
+    bytes_rate: float | None = Field(default=None, alias="bytes-r")
+    custom_anomalies: int | None = None
+    enable: bool | None = None
+    enabled: bool | None = None
+    flowctrl_rx: bool | None = None
+    flowctrl_tx: bool | None = None
+    forward: str | None = None
+    full_duplex: bool | None = None
+    is_uplink: bool | None = None
+    isolation: bool | None = None
+    jumbo: bool | None = None
+    last_connection: UnifiLastConnection | None = None
+    link_down_count: int | None = None
+    mac_table_count: int | None = None
+    masked: bool | None = None
+    media: str | None = None
+    name: str = ""
+    op_mode: str | None = None
+    poe_caps: int | None = None
+    poe_class: str | None = None
+    poe_current: float | None = None
+    poe_enable: bool | None = None
+    poe_good: bool | None = None
+    poe_mode: str | None = None
+    poe_power: float | None = None
+    poe_voltage: float | None = None
+    port_idx: int
+    port_poe: bool | None = None
+    rx_broadcast: int | None = None
+    rx_bytes: int | None = None
+    rx_bytes_rate: float | None = Field(default=None, alias="rx_bytes-r")
+    rx_dropped: int | None = None
+    rx_errors: int | None = None
+    rx_multicast: int | None = None
+    rx_packets: int | None = None
+    satisfaction: int | None = None
+    satisfaction_reason: int | None = None
+    speed: int | None = None
+    speed_caps: int | None = None
+    stp_edge_port: bool | None = None
+    stp_pathcost: int | None = None
+    stp_state: str | None = None
+    tx_broadcast: int | None = None
+    tx_bytes: int | None = None
+    tx_bytes_rate: float | None = Field(default=None, alias="tx_bytes-r")
+    tx_dropped: int | None = None
+    tx_errors: int | None = None
+    tx_multicast: int | None = None
+    tx_packets: int | None = None
+    up: bool | None = None
+
+
+class UniFiInterfaces(RootModel[dict[str, UnifiInterface]]):
     pass
 
 
@@ -121,7 +187,10 @@ def parse_interfaces(
         string_table: StringTable,
 ) -> UniFiInterfaces | None:
     data = parse_json(string_table)
-    return UniFiInterfaces.model_validate(data) if isinstance(data, list) else None
+    if not isinstance(data, list):
+        return None
+    interfaces = [UnifiInterface.model_validate(interface) for interface in data]
+    return UniFiInterfaces({str(interface.port_idx): interface for interface in interfaces})
 
 
 def parse_users(

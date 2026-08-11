@@ -4,64 +4,213 @@
 # (c) 2026 Frank Baier
 # @author Frank Baier <dev@baier-nt.de>
 #
-from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric, Result, Service, State
-from .unifi import UniFiInterfaces, UnifiObject, as_float, as_int
+from collections import defaultdict
+from collections.abc import Mapping, Sequence
+from time import time
+from typing import Any
+
+from cmk.agent_based.v2 import (
+    CheckPlugin,
+    CheckResult,
+    DiscoveryResult,
+    Metric,
+    Result,
+    RuleSetType,
+    Service,
+    ServiceLabel,
+    State,
+)
+from cmk.plugins.lib import interfaces
+
+from .unifi import UniFiInterfaces, UnifiInterface
 
 
-def _item(
-        port: UnifiObject,
-) -> str:
-    return str(port.value("port_idx", port.value("name", "unknown")))
+def _interfaces_section(section: UniFiInterfaces) -> list[interfaces.InterfaceWithCounters]:
+    """Expose UniFi port fields with the same attributes as Checkmk's SNMP interface check."""
+    timestamp = time()
+    interface_section = []
+    for port in section.root.values():
+        rx_broadcast = port.rx_broadcast or 0
+        rx_multicast = port.rx_multicast or 0
+        tx_broadcast = port.tx_broadcast or 0
+        tx_multicast = port.tx_multicast or 0
+        interface_section.append(
+            interfaces.InterfaceWithCounters(
+                attributes=interfaces.Attributes(
+                    index=str(port.port_idx),
+                    descr=f"Port {port.port_idx}",
+                    alias=port.name,
+                    type="6",  # ethernetCsmacd
+                    speed=(port.speed or 0) * 1_000_000,
+                    oper_status="1" if port.up else "2",
+                    admin_status=(
+                        None
+                        if (enabled := port.enabled if port.enabled is not None else port.enable) is None
+                        else "1" if enabled else "2"
+                    ),
+                ),
+                counters=interfaces.Counters(
+                    in_octets=port.rx_bytes,
+                    in_ucast=max(0, (port.rx_packets or 0) - rx_broadcast - rx_multicast),
+                    in_mcast=rx_multicast,
+                    in_bcast=rx_broadcast,
+                    in_disc=port.rx_dropped,
+                    in_err=port.rx_errors,
+                    out_octets=port.tx_bytes,
+                    out_ucast=max(0, (port.tx_packets or 0) - tx_broadcast - tx_multicast),
+                    out_mcast=tx_multicast,
+                    out_bcast=tx_broadcast,
+                    out_disc=port.tx_dropped,
+                    out_err=port.tx_errors,
+                ),
+                timestamp=timestamp,
+            )
+        )
+    return interface_section
 
 
 def _port(
         item: str,
+        params: Mapping[str, Any],
         section: UniFiInterfaces,
-) -> UnifiObject | None:
-    return next((port for port in section.root if _item(port) == item), None)
+) -> UnifiInterface | None:
+    appearance = params.get("item_appearance")
+    for interface in interfaces.matching_interfaces_for_item(
+            item,
+            _interfaces_section(section),
+            interfaces._to_item_appearance(appearance) if appearance else None,
+    ):
+        return section.root.get(interface.attributes.index)
+    return None
 
 
 def discover_unifi_device_if(
+        params: Sequence[Mapping[str, Any]],
         section: UniFiInterfaces,
 ) -> DiscoveryResult:
-    for port in section.root:
-        yield Service(item=_item(port))
+    interface_section = _interfaces_section(section)
+    if not interface_section:
+        return
+
+    pre_inventory: list[tuple[str, dict[str, object], int, bool, dict[str, str]]] = []
+    seen_indices: set[str] = set()
+    item_occurrences: dict[str, int] = defaultdict(int)
+
+    for interface in interface_section:
+        discover, settings = interfaces.DISCOVERY_DEFAULT_PARAMETERS["discovery_single"]
+        for rule in params:
+            if "discovery_single" in rule and interfaces._check_single_matching_conditions(
+                    interface.attributes, rule["matching_conditions"][1]
+            ):
+                discover, settings = rule["discovery_single"]
+                break
+
+        pad_portnumbers = settings.get("pad_portnumbers", True)
+        for appearance in ("index", "descr", "alias"):
+            if appearance == "alias" and interface.attributes.alias == interface.attributes.descr:
+                continue
+            item_occurrences[interfaces._compute_item(
+                interfaces._to_item_appearance(appearance),
+                interface.attributes,
+                interface_section,
+                pad_portnumbers,
+            ).item] += 1
+
+        item_info = interfaces._compute_item(
+            interfaces._to_item_appearance(settings.get("item_appearance", "index")),
+            interface.attributes,
+            interface_section,
+            pad_portnumbers,
+        )
+        if not discover or interface.attributes.index in seen_indices:
+            continue
+
+        labels: dict[str, str] = {}
+        for label_condition in settings.get("labels_conditions", []):
+            conditions = label_condition.get("conditions", {})
+            if (
+                interfaces.check_regex_match_conditions(interface.attributes.index, conditions.get("match_index"))
+                and interfaces.check_regex_match_conditions(interface.attributes.alias, conditions.get("match_alias"))
+                and interfaces.check_regex_match_conditions(interface.attributes.descr, conditions.get("match_desc"))
+            ):
+                labels.update(label_condition.get("labels", {}))
+        labels.update(settings.get("labels", {}))
+
+        discovered_params: dict[str, object] = {
+            "item_appearance": item_info.used_appearance,
+            "discovered_oper_status": [interface.attributes.oper_status],
+            "discovered_speed": interface.attributes.speed,
+        }
+        if interface.attributes.admin_status is not None:
+            discovered_params["discovered_admin_status"] = [interface.attributes.admin_status]
+
+        pre_inventory.append((
+            item_info.item,
+            discovered_params,
+            int(interface.attributes.index),
+            item_info.used_appearance == "index",
+            labels,
+        ))
+        seen_indices.add(interface.attributes.index)
+
+    for item, discovered_params, index, index_as_item, labels in pre_inventory:
+        yield Service(
+            item=f"{item} {index}" if not index_as_item and item_occurrences[item] > 1 else item,
+            parameters=discovered_params,
+            labels=[ServiceLabel(key, value) for key, value in labels.items()] or None,
+        )
 
 
 def check_unifi_device_if(
         item: str,
+        params: Mapping[str, Any],
         section: UniFiInterfaces,
 ) -> CheckResult:
-    port = _port(item, section)
+    # Use the normal Checkmk interface implementation first. This makes the complete
+    # ``interfaces`` check ruleset available, including status, speed, traffic,
+    # packet/error levels, averaging and all standard interface metrics.
+    yield from interfaces.check_multiple_interfaces(
+        item,
+        params,
+        _interfaces_section(section),
+    )
+
+    port = _port(item, params, section)
     if port is None:
         return
-    up = bool(port.value("up"))
-    name = port.value("name", item)
-    speed = as_int(port.value("speed"))
-    yield Result(state=State.OK if up else State.WARN, summary=f"{name}: {'up' if up else 'down'}")
-    yield Result(state=State.OK, summary=f"Speed: {speed} Mbit/s")
-    for key, metric, label in (("rx_bytes", "unifi_if_rx_bytes", "RX bytes"), ("tx_bytes", "unifi_if_tx_bytes", "TX bytes"), ("rx_errors", "unifi_if_rx_errors", "RX errors"), ("tx_errors", "unifi_if_tx_errors", "TX errors")):
-        value = as_int(port.value(key))
-        yield Metric(metric, value)
-        if key.endswith("errors"):
-            yield Result(state=State.WARN if value else State.OK, notice=f"{label}: {value}")
-    satisfaction = as_int(port.value("satisfaction"))
+    up = bool(port.up)
+
+    # Superseded by interfaces.check_multiple_interfaces():
+    # name = port.name or item
+    # speed = port.speed or 0
+    # yield Result(state=State.OK if up else State.WARN, summary=f"{name}: {'up' if up else 'down'}")
+    # yield Result(state=State.OK, summary=f"Speed: {speed} Mbit/s")
+    # for key, metric, label in (("rx_bytes", "unifi_if_rx_bytes", "RX bytes"), ("tx_bytes", "unifi_if_tx_bytes", "TX bytes"), ("rx_errors", "unifi_if_rx_errors", "RX errors"), ("tx_errors", "unifi_if_tx_errors", "TX errors")):
+    #     value = getattr(port, key) or 0
+    #     yield Metric(metric, value)
+    #     if key.endswith("errors"):
+    #         yield Result(state=State.WARN if value else State.OK, notice=f"{label}: {value}")
+
+    satisfaction = port.satisfaction or 0
     if up and satisfaction:
         yield Metric("unifi_satisfaction", satisfaction, boundaries=(0, 100))
         yield Result(state=State.OK, summary=f"Satisfaction: {satisfaction}%")
-    if port.value("portconf"):
-        yield Result(state=State.OK, notice=f"Network: {port.value('portconf')}")
-    yield Result(state=State.OK, notice=f"Jumbo frames: {'enabled' if port.value('jumbo') else 'disabled'}")
-    if port.value("port_poe"):
-        poe_power = as_float(port.value("poe_power"))
+    yield Result(state=State.OK, notice=f"Jumbo frames: {'enabled' if port.jumbo else 'disabled'}")
+    if port.port_poe:
+        poe_power = port.poe_power or 0.0
         yield Metric("unifi_poe_power", poe_power)
-        yield Result(state=State.OK if port.value("poe_good", True) else State.WARN, notice=f"PoE: {port.value('poe_mode', 'unknown')}, {poe_power:.2f} W")
+        yield Result(state=State.OK if port.poe_good is not False else State.WARN, notice=f"PoE: {port.poe_mode or 'unknown'}, {poe_power:.2f} W")
 
 
 check_plugin_unifi_device_if = CheckPlugin(
     name="unifi_device_if",
-    service_name="UniFi Interface %s",
+    service_name="Unifi Interface %s",
     sections=["unifi_device_if"],
     discovery_function=discover_unifi_device_if,
+    discovery_ruleset_name="inventory_if_rules",
+    discovery_ruleset_type=RuleSetType.ALL,
+    discovery_default_parameters=dict(interfaces.DISCOVERY_DEFAULT_PARAMETERS),
+    check_ruleset_name="interfaces",
+    check_default_parameters=interfaces.CHECK_DEFAULT_PARAMETERS,
     check_function=check_unifi_device_if,
 )
