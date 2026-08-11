@@ -50,6 +50,9 @@ class UnifiDevice(UnifiObject):
     ip: str | None = None
     state: int | str | None = None
     adopted: bool | None = None
+    total_max_effective_power: float | None = None
+    total_max_power: float | None = None
+    total_used_power: float | None = None
     port_table: list[UnifiObject] = []
     vap_table: list[UnifiObject] = []
     radio_table: list[UnifiObject] = []

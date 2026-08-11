@@ -69,6 +69,30 @@ metric_unifi_poe_current = Metric(
     unit=Unit(DecimalNotation("mA")),
     color=Color.LIGHT_PURPLE,
 )
+metric_unifi_poe_total_used_power = Metric(
+    name="unifi_poe_total_used_power",
+    title=Title("PoE power used"),
+    unit=Unit(DecimalNotation("W")),
+    color=Color.LIGHT_GREEN,
+)
+metric_unifi_poe_total_max_power = Metric(
+    name="unifi_poe_total_max_power",
+    title=Title("Maximum PoE power"),
+    unit=Unit(DecimalNotation("W")),
+    color=Color.LIGHT_BLUE,
+)
+metric_unifi_poe_total_max_effective_power = Metric(
+    name="unifi_poe_total_max_effective_power",
+    title=Title("Maximum effective PoE power"),
+    unit=Unit(DecimalNotation("W")),
+    color=Color.LIGHT_PURPLE,
+)
+metric_unifi_poe_total_usage = Metric(
+    name="unifi_poe_total_usage",
+    title=Title("PoE budget usage"),
+    unit=Unit(DecimalNotation("%")),
+    color=Color.LIGHT_GREEN,
+)
 metric_unifi_channel = Metric(
     name="unifi_channel",
     title=Title("WiFi channel"),
@@ -98,6 +122,22 @@ graph_unifi_poe_current = Graph(
     title=Title("PoE current"),
     simple_lines=["unifi_poe_current"],
     minimal_range=MinimalRange(0, 1),
+)
+graph_unifi_poe_budget = Graph(
+    name="unifi_poe_budget",
+    title=Title("PoE budget"),
+    simple_lines=[
+        "unifi_poe_total_used_power",
+        "unifi_poe_total_max_power",
+        "unifi_poe_total_max_effective_power",
+    ],
+    minimal_range=MinimalRange(0, 1),
+)
+graph_unifi_poe_budget_usage = Graph(
+    name="unifi_poe_budget_usage",
+    title=Title("PoE budget usage"),
+    simple_lines=["unifi_poe_total_usage"],
+    minimal_range=MinimalRange(0, 100),
 )
 
 
