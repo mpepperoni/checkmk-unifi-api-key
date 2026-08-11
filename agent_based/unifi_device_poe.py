@@ -20,7 +20,7 @@ from .unifi import UnifiDevice
 
 DEFAULT_PARAMETERS = {
     "poe_total_usage_levels_upper": ("fixed", (95.0, 98.0)),
-    "unifi_poe_total_used_power": ("no_levels", None),
+    "poe_total_used_power_levels_upper": ("no_levels", None),
 }
 
 
