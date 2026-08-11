@@ -70,7 +70,7 @@ def check_unifi_device_poe(
 
 check_plugin_unifi_device_poe = CheckPlugin(
     name="unifi_device_poe",
-    service_name="UniFi PoE budget",
+    service_name="Unifi PoE budget",
     sections=["unifi_device"],
     discovery_function=discover_unifi_device_poe,
     check_function=check_unifi_device_poe,
