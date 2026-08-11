@@ -47,11 +47,12 @@ def agent_unifi_arguments(
     if params.device_piggyback:
         arguments.append("--device-piggyback")
     if params.user_piggyback is not None:
-        user_piggyback_name, _details = params.user_piggyback.user_piggyback_name
+        user_piggyback_name, details = params.user_piggyback.user_piggyback_name
         arguments.extend([
-            "--user-piggyback", "create_user",
-            "--user-piggyback-name", user_piggyback_name,
+            "--user-piggyback", user_piggyback_name,
         ])
+        if user_piggyback_name == "hostname_domain":
+            arguments.extend(["--user-piggyback-domain", details.domain])
     if params.no_cert_check:
         arguments.append("--no-cert-check")
     yield SpecialAgentCommand(command_arguments=arguments)

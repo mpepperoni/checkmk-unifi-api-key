@@ -36,10 +36,13 @@ def parse_arguments(
     parser.add_argument("--udm-pro", action="store_true")
     parser.add_argument("--sites", nargs="*", default=["all"])
     parser.add_argument("--device-piggyback", action="store_true")
-    parser.add_argument("--user-piggyback", choices=("create_user", "create_user_site"))
-    parser.add_argument("--user-piggyback-name", default="ip")
+    parser.add_argument("--user-piggyback", choices=("ip", "hostname", "hostname_domain"))
+    parser.add_argument("--user-piggyback-domain")
     parser.add_argument("--no-cert-check", action="store_true")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.user_piggyback == "hostname_domain" and not args.user_piggyback_domain:
+        parser.error("--user-piggyback-domain is required for hostname_domain piggyback names")
+    return args
 
 
 def password(
@@ -80,6 +83,26 @@ def piggyback_header(
     print(f"<<<<{hostname}>>>>")
 
 
+def user_piggyback_hostname(
+        user: dict[str, Any],
+        args: argparse.Namespace,
+) -> str | None:
+    if args.user_piggyback == "ip":
+        return user.get("ip")
+
+    hostname = user.get("hostname")
+    if not hostname:
+        return None
+    if args.user_piggyback == "hostname":
+        return hostname
+
+    domain = args.user_piggyback_domain.strip(".")
+    hostname = hostname.rstrip(".")
+    if hostname.lower() == domain.lower() or hostname.lower().endswith(f".{domain.lower()}"):
+        return hostname
+    return f"{hostname}.{domain}"
+
+
 def fetch_site(
         session: requests.Session,
         api_url: str,
@@ -97,8 +120,6 @@ def fetch_site(
     piggyback_header(site_name)
     write_section("unifi_controller", controller[0] if isinstance(controller, list) and controller else {})
     write_section("unifi_site_controller_health", health)
-    if args.user_piggyback == "create_user_site":
-        write_section("unifi_site_users", users)
     print("<<<<>>>>")
     if args.device_piggyback:
         for device in devices:
@@ -109,9 +130,11 @@ def fetch_site(
             device_users = [user for user in users if device.get("mac") in {user.get("sw_mac"), user.get("ap_mac")}]
             write_section("unifi_device_users", device_users)
             print("<<<<>>>>")
-    if args.user_piggyback == "create_user":
+    if args.user_piggyback is not None:
         for user in users:
-            host = str(user.get(args.user_piggyback_name) or user.get("mac") or user.get("_id"))
+            host = user_piggyback_hostname(user, args)
+            if host is None:
+                continue
             piggyback_header(host)
             write_section("unifi_user", user)
             print("<<<<>>>>")
