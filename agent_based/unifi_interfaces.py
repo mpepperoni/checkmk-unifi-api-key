@@ -201,6 +201,24 @@ def check_unifi_device_if(
             boundaries=(0, 100),
         )
 
+    """
+    | Feld          | Bedeutung                                                                 |
+    | ------------- | ------------------------------------------------------------------------- |
+    | `port_poe`    | Dieser physische Switchport **unterstützt PoE**                           |
+    | `poe_caps`    | Bitmaske/Fähigkeiten des Ports bzgl. PoE                                  |
+    | `poe_mode`    | Konfiguration des Ports, z. B. `auto`, `off`, ältere Geräte auch `pasv24` |
+    | `poe_enable`  | PoE-Ausgabe ist auf diesem Port **aktiviert/freigegeben**                 |
+    | `poe_good`    | Switch hat einen gültigen PoE-Zustand / ein PD erkannt und versorgt es    |
+    | `poe_class`   | erkannte IEEE-PoE-Leistungsklasse des angeschlossenen PD                  |
+    | `poe_voltage` | aktuell ausgegebene PoE-Spannung                                          |
+    | `poe_current` | aktueller Strom                                                           |
+    | `poe_power`   | aktuell abgegebene Leistung in Watt                                       |
+
+    port_poe      → kann dieser Port PoE?
+    poe_mode      → ist PoE administrativ erlaubt?
+    poe_enable    → ist der PoE-Ausgang aktuell eingeschaltet?
+    poe_good      → wurde ein gültiges PD erkannt / wird tatsächlich versorgt?
+    """
     if port.port_poe:
         if not port.poe_enable:
             yield Result(state=State.WARN, summary="PoE: disabled")
