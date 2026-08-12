@@ -4,14 +4,21 @@
 # (c) 2026 Frank Baier
 # @author Frank Baier <dev@baier-nt.de>
 #
-from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric, Result, Service, State
-from .unifi import UnifiDevice, UniFiUsers, as_int
+from cmk.agent_based.v2 import (
+    CheckPlugin,
+    CheckResult,
+    DiscoveryResult,
+    Metric, Result,
+    Service,
+    State
+)
+from .unifi import RADIO_BANDS, UnifiDevice, UniFiUsers, UnifiVap, as_int
 
 
 def _item(
-        vap,
+        vap: UnifiVap,
 ) -> str:
-    return f"{vap.value('name', 'unknown')}_{vap.value('essid', 'unknown')}"
+    return f"{vap.name or 'unknown'}_{vap.essid or 'unknown'}"
 
 
 def discover_unifi_device_wifi(
@@ -34,9 +41,21 @@ def check_unifi_device_wifi(
     vap = next((entry for entry in section_unifi_device.vap_table if _item(entry) == item), None)
     if vap is None:
         return
-    users = as_int(vap.value("num_sta"))
-    signal = as_int(vap.value("avg_client_signal"))
-    yield Result(state=State.OK if vap.value("up") else State.WARN, summary=f"SSID: {vap.value('essid', 'unknown')} ({'up' if vap.value('up') else 'down'})")
+    users = as_int(vap.num_sta)
+    signal = as_int(vap.avg_client_signal)
+    yield Result(
+        state=State.OK if vap.up else State.WARN,
+        summary=f"SSID: {vap.essid or 'unknown'} ({'up' if vap.up else 'down'})"
+    )
+    yield Result(
+        state=State.OK,
+        summary=f"Radio interface: {vap.radio_name or 'unknown'}"
+    )
+    yield Result(
+        state=State.OK,
+        summary=f"Frequency band: {RADIO_BANDS.get(vap.radio, vap.radio or 'unknown')}",
+    )
+
     yield Metric("unifi_clients", users)
     yield Metric("unifi_signal", signal)
     yield Result(state=State.OK, summary=f"Clients: {users}, average signal: {signal} dBm")

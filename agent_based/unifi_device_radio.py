@@ -4,8 +4,16 @@
 # (c) 2026 Frank Baier
 # @author Frank Baier <dev@baier-nt.de>
 #
-from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric, Result, Service, State
-from .unifi import UnifiDevice, UniFiUsers, as_int
+from cmk.agent_based.v2 import (
+    CheckPlugin,
+    CheckResult,
+    DiscoveryResult,
+    Metric,
+    Result,
+    Service,
+    State
+)
+from .unifi import RADIO_BANDS, UnifiDevice, UniFiUsers, as_int
 
 
 def discover_unifi_device_radio(
@@ -15,8 +23,8 @@ def discover_unifi_device_radio(
     if section_unifi_device is None:
         return
     for radio in section_unifi_device.radio_table:
-        if radio.value("name"):
-            yield Service(item=str(radio.value("name")))
+        if radio.name:
+            yield Service(item=radio.name)
 
 
 def check_unifi_device_radio(
@@ -26,16 +34,16 @@ def check_unifi_device_radio(
 ) -> CheckResult:
     if section_unifi_device is None:
         return
-    radio = next((entry for entry in section_unifi_device.radio_table if entry.value("name") == item), None)
-    stats = next((entry for entry in section_unifi_device.radio_table_stats if entry.value("name") == item), None)
+    radio = next((entry for entry in section_unifi_device.radio_table if entry.name == item), None)
+    stats = next((entry for entry in section_unifi_device.radio_table_stats if entry.name == item), None)
     if radio is None:
         return
-    channel = as_int((stats or radio).value("channel"))
-    frequency = "2.4 GHz" if channel and channel < 15 else "5 GHz"
-    yield Result(state=State.OK, summary=f"Channel: {channel} ({frequency}), width: {radio.value('ht', 'unknown')} MHz")
+    channel = as_int(stats.channel if stats is not None else radio.channel)
+    frequency = RADIO_BANDS.get(radio.radio, radio.radio or "unknown")
+    yield Result(state=State.OK, summary=f"Channel: {channel} ({frequency}), width: {radio.ht or 'unknown'} MHz")
     if stats:
-        satisfaction = as_int(stats.value("satisfaction"))
-        clients = as_int(stats.value("user-num_sta")) + as_int(stats.value("guest-num_sta"))
+        satisfaction = as_int(stats.satisfaction)
+        clients = as_int(stats.user_num_sta) + as_int(stats.guest_num_sta)
         yield Metric("unifi_channel", channel)
         yield Metric("unifi_satisfaction", satisfaction, boundaries=(0, 100))
         yield Metric("unifi_clients", clients)

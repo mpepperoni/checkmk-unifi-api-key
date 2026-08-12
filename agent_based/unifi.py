@@ -46,6 +46,142 @@ class UnifiSite(UnifiObject):
     num_new_alarms: int | None = None
 
 
+class UnifiRadio(UnifiObject):
+    """A configured access-point radio returned by ``radio_table``.
+
+    Ignore unknown controller fields so newly introduced UniFi properties do not
+    prevent the complete device section from being parsed.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    antenna_gain: int | None = None
+    antenna_id: int | None = None
+    builtin_ant_gain: int | None = None
+    builtin_antenna: bool | None = None
+    channel: int | str | None = None
+    current_antenna_gain: int | None = None
+    hard_noise_floor_enabled: bool | None = None
+    has_dfs: bool | None = None
+    has_fccdfs: bool | None = None
+    has_ht160: bool | None = None
+    ht: int | None = None
+    is_11ac: bool | None = None
+    is_11ax: bool | None = None
+    loadbalance_enabled: bool | None = None
+    max_txpower: int | None = None
+    min_rssi: int | None = None
+    min_rssi_enabled: bool | None = None
+    min_txpower: int | None = None
+    name: str | None = None
+    nss: int | None = None
+    radio: str | None = None
+    radio_caps: int | None = None
+    radio_caps2: int | None = None
+    sens_level_enabled: bool | None = None
+    tx_power: int | None = None
+    tx_power_mode: str | None = None
+    vwire_enabled: bool | None = None
+
+
+class UnifiVap(UnifiObject):
+    """A virtual access point returned by ``vap_table``.
+
+    Nested controller structures intentionally remain dictionaries. Their
+    schema varies between controller and firmware versions and is not needed by
+    the inventory tables.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    anomalies_bar_chart: dict[str, int] | None = None
+    anomalies_bar_chart_now: dict[str, int] | None = None
+    ap_mac: str | None = None
+    avg_client_signal: int | None = None
+    bssid: str | None = None
+    bw: int | None = None
+    ccq: int | None = None
+    channel: int | None = None
+    dns_avg_latency: int | None = None
+    essid: str | None = None
+    extchannel: int | None = None
+    icmp_avg_rtt: int | None = None
+    id: str | None = None
+    is_guest: bool | None = None
+    is_wep: bool | None = None
+    mac_filter_rejections: int | None = None
+    name: str | None = None
+    num_satisfaction_sta: int | None = None
+    num_sta: int | None = None
+    radio: str | None = None
+    radio_name: str | None = None
+    reasons_bar_chart: dict[str, int] | None = None
+    reasons_bar_chart_now: dict[str, int] | None = None
+    rx_bcast: int | None = None
+    rx_bytes: int | None = None
+    rx_crypts: int | None = None
+    rx_dropped: int | None = None
+    rx_errors: int | None = None
+    rx_frags: int | None = None
+    rx_mcast: int | None = None
+    rx_nwids: int | None = None
+    rx_packets: int | None = None
+    rx_tcp_stats: dict[str, int] | None = None
+    satisfaction: int | None = None
+    site_id: str | None = None
+    state: str | None = None
+    t: str | None = None
+    tx_bcast: int | None = None
+    tx_bytes: int | None = None
+    tx_combined_retries: int | None = None
+    tx_data_mpdu_bytes: int | None = None
+    tx_dropped: int | None = None
+    tx_errors: int | None = None
+    tx_mcast: int | None = None
+    tx_packets: int | None = None
+    tx_power: int | None = None
+    tx_retries: int | None = None
+    tx_rts_retries: int | None = None
+    tx_success: int | None = None
+    tx_tcp_stats: dict[str, int] | None = None
+    tx_total: int | None = None
+    up: bool | None = None
+    usage: str | None = None
+    wifi_tx_attempts: int | None = None
+    wifi_tx_dropped: int | None = None
+    wifi_tx_latency_mov: dict[str, int] | None = None
+    wlanconf_id: str | None = None
+
+
+class UnifiRadioStatistics(UnifiObject):
+    """The current operational values returned by ``radio_table_stats``."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    ast_be_xmit: int | None = None
+    ast_cst: int | None = None
+    ast_txto: int | None = None
+    bw: int | None = None
+    channel: int | None = None
+    cu_self_rx: int | None = None
+    cu_self_tx: int | None = None
+    cu_total: int | None = None
+    extchannel: int | None = None
+    gain: int | None = None
+    guest_num_sta: int | None = Field(default=None, alias="guest-num_sta")
+    last_channel: int | None = None
+    name: str | None = None
+    num_sta: int | None = None
+    radio: str | None = None
+    satisfaction: int | None = None
+    state: str | None = None
+    tx_packets: int | None = None
+    tx_power: int | None = None
+    tx_retries: int | None = None
+    tx_retries_pct: float | None = None
+    user_num_sta: int | None = Field(default=None, alias="user-num_sta")
+
+
 class UnifiDevice(UnifiObject):
     name: str | None = None
     model: str | None = None
@@ -59,9 +195,9 @@ class UnifiDevice(UnifiObject):
     total_max_power: float | None = None
     total_used_power: float | None = None
     port_table: list[UnifiObject] = []
-    vap_table: list[UnifiObject] = []
-    radio_table: list[UnifiObject] = []
-    radio_table_stats: list[UnifiObject] = []
+    vap_table: list[UnifiVap] = []
+    radio_table: list[UnifiRadio] = []
+    radio_table_stats: list[UnifiRadioStatistics] = []
 
 
 class UnifiUser(UnifiObject):
@@ -150,6 +286,14 @@ class UniFiUsers(RootModel[list[UnifiUser]]):
 
 
 DEVICE_STATES = {0: "disconnected", 1: "connected", 2: "pending"}
+
+# UniFi's radio field identifies the frequency band independently from the
+# configured channel. Keep this mapping shared by checks and inventory UIs.
+RADIO_BANDS = {
+    "ng": "2.4 GHz",
+    "na": "5 GHz",
+    "6e": "6 GHz",
+}
 
 
 DEVICE_MODELS = {
