@@ -45,14 +45,15 @@ need permission to change controller settings.
 2. Create a Checkmk host for the UniFi controller.
 3. Open **Setup > Agents > Other integrations > UniFi connection parameters**.
 4. Create a rule for the controller host and enter its address, credentials, and
-   options.
+   options. The account needs read access to every selected site.
 5. Activate the changes.
 6. Run service discovery on the controller host.
-7. If you enabled piggyback data, also run service discovery on the generated
-   site, device, or client hosts.
+7. If you enabled piggyback data, create matching Checkmk hosts and run service
+   discovery on them.
 
-Run service discovery again after changing the selected sites, host naming
-mode, piggyback options, or interface naming rules.
+Piggyback output does not create Checkmk hosts automatically. Run service
+discovery again after changing the selected sites, host naming mode, piggyback
+options, or interface naming rules.
 
 ## Connection rule
 
@@ -65,11 +66,11 @@ additional hosts it creates.
 | Username and password | UniFi API credentials. |
 | Port | HTTPS port of the controller. The default is `443`. |
 | UDM Pro mode | Use this when a UniFi OS gateway needs the UDM-specific API endpoints. |
-| Sites | Monitor all sites or only named sites. |
+| Sites | Monitor all sites or only named sites. Names are the displayed UniFi site descriptions, not internal site IDs, and matching is case-sensitive. An unset list queries all sites; use `all` to make this setting explicit. |
 | Device piggyback | Write data for every managed UniFi device. |
 | Site client piggyback | Write client data to each site piggyback host. |
 | Individual client piggyback | Create one piggyback host per UniFi client. |
-| Client host naming | Select IP address, hostname, or hostname plus domain for client hosts. |
+| Client host naming | Select IP address, hostname, or hostname plus domain for client hosts. A client without the selected value is skipped. In hostname-plus-domain mode, an existing matching domain is not appended twice. |
 
 TLS certificate validation is enabled by default. Disable it only when the
 controller uses a self-signed certificate and the connection is on a trusted
@@ -77,22 +78,49 @@ network.
 
 ## Hosts and services
 
-The controller host always receives controller services. Other hosts are
-created only when their piggyback option is enabled.
+The controller host always receives controller services. The agent always
+writes data for selected site names; device and individual-client data are
+optional. Create the Checkmk hosts yourself with exactly the piggyback names;
+the agent does not create host objects.
 
 | Host | Typical name | Purpose |
 | --- | --- | --- |
 | Controller | Your Checkmk controller host | Controller and site services |
-| Site | UniFi site description | Client services for one site |
+| Site | UniFi site description | Site-specific controller and health services; client services when enabled |
 | Device | UniFi device name | Switch, access point, or gateway services |
 | Client | Configured IP address or hostname | One client service per host |
 
 Use stable and unique UniFi site and device names. These names are used as
-piggyback host names.
+piggyback host names. Duplicate site descriptions, device names, or client
+names cause data to be written to the same piggyback host and can mix services.
+IP-based client names are usually unique but can change with DHCP.
 
 Typical device services include **UniFi Device**, **UniFi Environment**,
 **UniFi Radio**, **UniFi SSID**, **Unifi Interface _port_**, and **Unifi PoE
 budget**. The exact list depends on the device type and its reported data.
+
+## Service states, metrics, and built-in thresholds
+
+The following states are fixed in the extension. They do not have a separate
+UniFi rule unless a rule is named below.
+
+| Service | State behaviour | Metrics and notes |
+| --- | --- | --- |
+| **UniFi Controller** | WARN when the controller reports one or more unsupported devices; otherwise OK. | Name, type, build, and unsupported model list are informational. |
+| **Unifi Site _site_** | WARN when `num_new_alarms` is greater than zero; otherwise OK. | User and guest counts can be emitted once for every controller health subsystem. |
+| **UniFi Health _subsystem_** | OK only for status `ok`, `healthy`, or `good`; any other reported status is WARN. Non-zero pending or disconnected device counts are WARN. | A subsystem with status `unknown` is not discovered. |
+| **UniFi Device** | `connected` is OK, `pending` is WARN, `disconnected` or unknown is CRIT. Not adopted is WARN. Reported EOL, LTS, or incompatible model flags are WARN. | Satisfaction is a 0–100% metric without default alert levels. Both numeric and textual API states are accepted. |
+| **UniFi Environment** | Reported overheating is CRIT. Fan level is informational. | Temperature in °C; no numeric temperature levels are configured. |
+| **UniFi Radio _radio_** | Informational (OK). | Channel, client count, and satisfaction; no radio thresholds. |
+| **UniFi SSID _interface_\_SSID_** | WARN when the VAP is down; otherwise OK. | Client count and average signal in dBm. |
+| **UniFi Client _client_** on a site host | WARN when UniFi reports `is_online=false`; otherwise OK. | Satisfaction 0–100%. Mobile clients can therefore create expected warnings. |
+| **UniFi Client Info/Uplink** on a client host | Informational (OK). | Satisfaction; wireless signal/noise, or wired switch and port. |
+
+The API request timeout is 20 seconds per request. The agent requests controller
+information and the site list, then devices, clients, health, and controller
+information for every selected site. Large installations or unreachable sites
+can therefore make the check slow. A failed required API request stops the
+agent run.
 
 ## Switch interfaces
 
@@ -116,8 +144,9 @@ also apply to UniFi interfaces.
 
 Use the standard Checkmk **Switch port discovery** / interface discovery rules
 to choose which ports become services and how they are named. The normal
-default behaviour is preserved: ports that are operationally down are not
-discovered unless a matching rule explicitly includes them.
+default behaviour is preserved: operationally up Ethernet ports (interface
+type `6`) are discovered. Ports that are operationally down are not discovered
+unless a matching rule explicitly includes them.
 
 The naming options match standard interfaces:
 
@@ -138,12 +167,21 @@ interface metrics and graphs are used instead of custom copies.
 The service also adds UniFi-specific information, such as jumbo-frame status,
 satisfaction, and PoE details. If PoE is enabled for a port, Checkmk reports
 the PoE mode, class, power in W, voltage in V, and current in mA. A failed
-`poe_good` value remains a warning.
+`poe_good` value is shown as **PoE: inactive** but is OK by default. Disabled
+PoE and ports without PoE capability are also OK. Satisfaction, PoE power,
+voltage, and current have no extension-specific thresholds by default.
+
+The complete built-in Checkmk **Network interfaces** rule applies to this
+service. Its default error-rate level for errors in both directions is WARN at
+**0.01%** and CRIT at **0.1%**. The normal built-in options for expected state
+and speed, traffic, packet/error/discard levels, averaging, and interface
+groups are available as well. Configure them with the standard interface rule,
+not a UniFi-specific rule.
 
 ## PoE budget
 
 The **Unifi PoE budget** service is created when a device reports total used
-PoE power. It displays:
+PoE power, including `0 W`. It displays:
 
 - Total used PoE power
 - Maximum PoE power, when reported
@@ -157,7 +195,34 @@ The **UniFi PoE budget levels** rule has two independent optional upper limits:
   98% by default.
 
 The percentage uses the reported maximum power. If only the effective maximum
-is available, it is used instead.
+is available, it is used instead. If no positive maximum is available, the
+percentage cannot be calculated and no percentage threshold is evaluated.
+
+The used, maximum, effective maximum, and percentage values are metrics. The
+maximum values are emitted when the controller provides them, so the supplied
+PoE budget graph can show the available budget as well as usage.
+
+## Rules used by this extension
+
+The extension provides these rules:
+
+| Rule | Scope | Default |
+| --- | --- | --- |
+| **UniFi connection parameters** | Controller host | HTTPS port `443`, certificate validation enabled, legacy API, all sites, and all piggyback options disabled. |
+| **UniFi PoE budget levels** | **Unifi PoE budget** | Total W limit disabled; percentage WARN `95%`, CRIT `98%`. |
+| **UniFi interface inventory** | Device inventory | Enabled. |
+
+It also uses two built-in Checkmk rule sets:
+
+| Built-in rule | Used for | Relevant default |
+| --- | --- | --- |
+| **Switch port discovery** (`inventory_if_rules`) | Discovering and naming **Unifi Interface** services | Up Ethernet ports only; item is the port index; port numbers are padded with leading zeroes. |
+| **Network interfaces** (`interfaces`) | Checking **Unifi Interface** services | Error rate in both directions: WARN `0.01%`, CRIT `0.1%`. All other normal interface parameters remain available. |
+
+Changing a switch-port naming option or its matching conditions requires a new
+service discovery. Existing services are not renamed automatically. Alias
+naming uses the configured UniFi port name and can be ambiguous if names are
+not unique.
 
 ## Hardware and network inventory
 
@@ -212,6 +277,8 @@ but can create noise for mobile devices that often leave the network.
 ### A device, site, or client host is missing
 
 - Enable the matching piggyback option in the connection rule.
+- Create a Checkmk host whose name exactly matches the piggyback name. The
+  special agent writes data but does not create hosts.
 - Check that the UniFi site or device name is unique.
 - Run discovery on the controller host first, then on the piggyback host.
 
@@ -228,6 +295,15 @@ but can create noise for mobile devices that often leave the network.
 The extension uses Checkmk's standard interface metric names. After updating
 the extension, activate changes and wait for new monitoring data. Historical
 graph data can retain older metric names until it expires.
+
+### The check takes too long or fails completely
+
+- Each API request times out after 20 seconds. Four requests are needed for
+  every selected site, in addition to the controller and site-list requests.
+- Verify the selected site names. They must be the visible UniFi site
+  descriptions and are case-sensitive.
+- Check controller reachability, account rights, API mode, and TLS validation.
+  One failed required request ends the complete agent run.
 
 ## Security notes
 

@@ -286,6 +286,7 @@ class UniFiUsers(RootModel[list[UnifiUser]]):
 
 
 DEVICE_STATES = {0: "disconnected", 1: "connected", 2: "pending"}
+DEVICE_STATE_NUMBERS = {name: number for number, name in DEVICE_STATES.items()}
 
 # UniFi's radio field identifies the frequency band independently from the
 # configured channel. Keep this mapping shared by checks and inventory UIs.
@@ -441,6 +442,22 @@ def as_float(
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def device_state(
+        value: int | str | None,
+) -> str:
+    """Return a normalized UniFi device state.
+
+    Most controller versions use the numeric values 0, 1, and 2.  Some API
+    versions return their textual equivalents instead, so accepting both keeps
+    a connected device from being reported as an unknown critical state.
+    """
+    if isinstance(value, str):
+        normalized = value.lower()
+        if normalized in DEVICE_STATE_NUMBERS:
+            return normalized
+    return DEVICE_STATES.get(as_int(value, -1), "unknown")
 
 
 def model_name(

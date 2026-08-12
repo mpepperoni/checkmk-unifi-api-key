@@ -5,7 +5,7 @@
 # @author Frank Baier <dev@baier-nt.de>
 #
 from cmk.agent_based.v2 import CheckPlugin, CheckResult, DiscoveryResult, Metric, Result, Service, State
-from .unifi import DEVICE_STATES, UnifiDevice, as_float, as_int, model_name
+from .unifi import UnifiDevice, as_float, as_int, device_state, model_name
 
 
 def discover_unifi_device(
@@ -21,8 +21,11 @@ def check_unifi_device(
         section: UnifiDevice,
 ) -> CheckResult:
     if item == "Device":
-        state = as_int(section.state, -1)
-        yield Result(state=State.OK if state == 1 else State.WARN if state == 2 else State.CRIT, summary=f"State: {DEVICE_STATES.get(state, 'unknown')}")
+        state = device_state(section.state)
+        yield Result(
+            state=State.OK if state == "connected" else State.WARN if state == "pending" else State.CRIT,
+            summary=f"State: {state}",
+        )
         yield Result(state=State.OK, summary=f"Type: {section.type or 'unknown'}, model: {model_name(section.model)}")
         yield Result(state=State.OK, summary=f"Name: {section.name or 'unknown'}, serial: {section.serial or 'unknown'}")
         yield Result(state=State.OK, summary=f"Version: {section.version or 'unknown'}, IP: {section.ip or 'unknown'}")

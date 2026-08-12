@@ -10,9 +10,7 @@ from cmk.agent_based.v2 import (
     CheckPlugin,
     CheckResult,
     DiscoveryResult,
-    Result,
     Service,
-    State,
     check_levels,
 )
 from .unifi import UnifiDevice
@@ -27,7 +25,7 @@ DEFAULT_PARAMETERS = {
 def discover_unifi_device_poe(
         section: UnifiDevice
 ) -> DiscoveryResult:
-    if section.total_used_power:
+    if section.total_used_power is not None:
         yield Service()
 
 
@@ -49,10 +47,20 @@ def check_unifi_device_poe(
     max_effective_power = section.total_max_effective_power
 
     if max_power is not None:
-        yield Result(state=State.OK, summary=f"Maximum PoE power: {max_power} W")
+        yield from check_levels(
+            max_power,
+            metric_name="unifi_poe_total_max_power",
+            label="Maximum PoE power",
+            render_func=lambda value: f"{value:.2f} W",
+        )
 
     if max_effective_power is not None:
-        yield Result(state=State.OK, summary=f"Maximum effective PoE power: {max_effective_power} W")
+        yield from check_levels(
+            max_effective_power,
+            metric_name="unifi_poe_total_max_effective_power",
+            label="Maximum effective PoE power",
+            render_func=lambda value: f"{value:.2f} W",
+        )
 
     maxpower = max_power or max_effective_power
 
