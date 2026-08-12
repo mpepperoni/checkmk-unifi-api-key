@@ -16,12 +16,14 @@ def _admin_status(port_enabled: bool | None) -> int | None:
     return 1 if port_enabled else 2
 
 
-def _duplex(full_duplex: bool | None) -> str:
+def _duplex(full_duplex: bool | None, port_up: bool | None) -> str:
+    if not port_up:
+        return ""
     if full_duplex is True:
         return "full"
     if full_duplex is False:
         return "half"
-    return "unknown"
+    return ""
 
 
 def inventory_unifi_interfaces(
@@ -61,7 +63,7 @@ def inventory_unifi_interfaces(
         yield TableRow(
             path=["networking", "interfaces"],
             key_columns={"index": port.port_idx},
-            inventory_columns={"duplex": _duplex(port.full_duplex)},
+            inventory_columns={"duplex": _duplex(port.full_duplex, port.up)},
         )
 
 
