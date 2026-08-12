@@ -66,9 +66,10 @@ def write_section(
 def request(
         session: requests.Session,
         url: str,
+        verify: bool,
 ) -> Any:
     try:
-        response = session.get(url, timeout=REQUEST_TIMEOUT_SECONDS)
+        response = session.get(url, timeout=REQUEST_TIMEOUT_SECONDS, verify=verify)
         response.raise_for_status()
         payload = response.json()
     except (requests.RequestException, ValueError) as exc:
@@ -109,15 +110,16 @@ def fetch_site(
         api_url: str,
         site: dict[str, Any],
         args: argparse.Namespace,
+        verify: bool,
 ) -> None:
     site_id = site.get("name")
     site_name = str(site.get("desc") or site_id)
     if not site_id:
         return
-    devices = request(session, f"{api_url}/s/{site_id}/stat/device")
-    users = request(session, f"{api_url}/s/{site_id}/stat/sta")
-    health = request(session, f"{api_url}/s/{site_id}/stat/health")
-    controller = request(session, f"{api_url}/s/{site_id}/stat/sysinfo")
+    devices = request(session, f"{api_url}/s/{site_id}/stat/device", verify)
+    users = request(session, f"{api_url}/s/{site_id}/stat/sta", verify)
+    health = request(session, f"{api_url}/s/{site_id}/stat/health", verify)
+    controller = request(session, f"{api_url}/s/{site_id}/stat/sysinfo", verify)
     piggyback_header(site_name)
     write_section("unifi_controller", controller[0] if isinstance(controller, list) and controller else {})
     write_section("unifi_site_controller_health", health)
@@ -154,12 +156,16 @@ def run_agent(
     login_url = f"{base_url}/api/auth/login" if parsed_args.udm_pro else f"{base_url}/api/login"
     api_url = f"{base_url}/proxy/network/api" if parsed_args.udm_pro else f"{base_url}/api"
     session = requests.Session()
-    session.verify = verify
     try:
-        response = session.post(login_url, json={"username": parsed_args.username, "password": password(parsed_args)}, timeout=REQUEST_TIMEOUT_SECONDS)
+        response = session.post(
+            login_url,
+            json={"username": parsed_args.username, "password": password(parsed_args)},
+            timeout=REQUEST_TIMEOUT_SECONDS,
+            verify=verify,
+        )
         response.raise_for_status()
-        controller = request(session, f"{api_url}/s/default/stat/sysinfo")
-        sites = request(session, f"{api_url}/stat/sites")
+        controller = request(session, f"{api_url}/s/default/stat/sysinfo", verify)
+        sites = request(session, f"{api_url}/stat/sites", verify)
     except RuntimeError as exc:
         sys.stderr.write(f"{exc}\n")
         return 1
@@ -172,7 +178,7 @@ def run_agent(
     for site in sites:
         if "all" in wanted_sites or site.get("desc") in wanted_sites:
             try:
-                fetch_site(session, api_url, site, parsed_args)
+                fetch_site(session, api_url, site, parsed_args, verify)
             except RuntimeError as exc:
                 sys.stderr.write(f"{exc}\n")
                 return 1
