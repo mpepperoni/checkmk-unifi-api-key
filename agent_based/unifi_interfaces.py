@@ -221,10 +221,10 @@ def check_unifi_device_if(
     """
     if port.port_poe:
         if not port.poe_enable:
-            yield Result(state=State.WARN, summary="PoE: disabled")
+            yield Result(state=State.OK, summary="PoE: disabled")
             return
         if not port.poe_good:
-            yield Result(state=State.WARN, summary="PoE: inactive")
+            yield Result(state=State.OK, summary="PoE: inactive")
             return
 
         yield Result(state=State.OK, summary=f"PoE: active")
