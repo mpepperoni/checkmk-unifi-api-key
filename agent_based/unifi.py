@@ -5,10 +5,15 @@
 # @author Frank Baier <dev@baier-nt.de>
 #
 from __future__ import annotations
-import json
 from typing import Any
-from cmk.agent_based.v2 import AgentSection, StringTable
 from pydantic import BaseModel, ConfigDict, Field, RootModel
+import json
+from cmk.agent_based.v2 import (
+    AgentSection,
+    HostLabel,
+    HostLabelGenerator,
+    StringTable
+)
 
 
 class UnifiObject(BaseModel):
@@ -148,12 +153,75 @@ DEVICE_STATES = {0: "disconnected", 1: "connected", 2: "pending"}
 
 
 DEVICE_MODELS = {
-    "UDM": "UDM", "UDMSE": "UDM-SE", "UDMPRO": "UDM-Pro", "UXGPRO": "UXG-Pro",
-    "U7NHD": "UAP-nanoHD", "U6E": "U6-Enterprise", "UAL6": "U6-Lite",
-    "UAP6": "U6-LR", "US8": "US-8", "US24": "US-24-G1", "US48": "US-48-G1",
-    "USW24": "USW-24", "USW48": "USW-48", "USMINI": "USW-Flex-Mini",
+    "UDM": "UDM",
+    "UDMSE": "UDM-SE",
+    "UDMPRO": "UDM-Pro",
+    "UXGPRO": "UXG-Pro",
+    "U7NHD": "UAP-nanoHD",
+    "U6E": "U6-Enterprise",
+    "UAL6": "U6-Lite",
+    "UAP6": "U6-LR",
+    "U6ENT": "U6-Enterprise",
+    "U6ENTIW": "U6-Enterprise-IW",
+    "U6EXT": "U6-Extender",
+    "U6IW": "U6-In-Wall",
+    "U6M": "U6-Mesh",
+    "UAP6MP": "U6-Pro",
+    "UAPL6": "U6+",
+    "U7PRO": "U7-Pro",
+    "U7ENT": "U7-Enterprise",
+    "G7LR": "U7-LR",
+    "U7LT": "UAP-AC-Lite",
+    "U7LR": "UAP-AC-LR",
+    "U7PG2": "UAP-AC-Pro",
+    "U7HD": "UAP-AC-HD",
+    "U7SHD": "UAP-AC-SHD",
+    "U7MSH": "UAP-AC-Mesh",
+    "U7MP": "UAP-AC-Mesh-Pro",
+    "U7P": "UAP-Pro",
+    "U7EDU": "UAP-AC-EDU",
+    "U7Ev2": "UAP-AC",
+    "U7O": "UAP-AC-Outdoor",
+    "U2S48": "UAP",
+    "U2Sv2": "UAP",
+    "U5O": "UAP-Outdoor5",
+    "US8": "US-8",
+    "US24": "US-24-G1",
+    "US48": "US-48-G1",
+    "USW24": "USW-24",
+    "USW48": "USW-48",
+    "USMINI": "USW-Flex-Mini",
+    "US6XG150": "US-XG-6PoE",
+    "USL8LP": "USW-Lite-8-PoE",
+    "USL8LPB": "USW-Lite-8-PoE",
+    "USL8MP": "USW-Mission-Critical",
+    "USL8A": "USW-Aggregation",
+    "USL16P": "USW-16-PoE",
+    "USL16LP": "USW-Lite-16-PoE",
+    "USL24": "USW-24",
+    "USL24P": "USW-24-PoE",
+    "USL48": "USW-48",
+    "USL48P": "USW-48-PoE",
+    "US24PRO": "USW-Pro-24-PoE",
+    "US24PRO2": "USW-Pro-24",
+    "US48PRO": "USW-Pro-48-PoE",
+    "US48PRO2": "USW-Pro-48",
+    "US68P": "USW-Enterprise-8-PoE",
+    "US624P": "USW-Enterprise-24-PoE",
+    "US648P": "USW-Enterprise-48-PoE",
+    "USXG24": "USW-Enterprise-XG-24",
+    "USAGGPRO": "USW-Pro-Aggregation",
+    "USPM24P": "USW-Pro-Max-24-PoE",
+    "USPM48P": "USW-Pro-Max-48-PoE",
+    "USMINI2": "USW-Flex-Mini",
+    "USXG": "US-16-XG",
+    "UX": "UniFi-Express",
+    "UGW3": "USG-3P",
+    "UGW4": "USG-Pro-4",
+    "UGWHD4": "USG",
+    "UGWXG": "USG-XG-8",
+    "USPPDUP": "USP-PDU-Pro",
 }
-
 
 def parse_json(
         string_table: StringTable,
@@ -237,6 +305,16 @@ def model_name(
     return DEVICE_MODELS.get(model or "", model or "unknown")
 
 
+def host_labels_unifi_device(
+        section: UnifiDevice,
+) -> HostLabelGenerator:
+    """Expose the UniFi model and the API-provided generic device type."""
+    if section.model:
+        yield HostLabel("cmk/unifi_device_model", section.model)
+    if section.type:
+        yield HostLabel("cmk/unifi_device_type", section.type)
+
+
 agent_section_unifi_controller = AgentSection(
     name="unifi_controller",
     parse_function=parse_controller,
@@ -252,6 +330,7 @@ agent_section_unifi_site_controller_health = AgentSection(
 agent_section_unifi_device = AgentSection(
     name="unifi_device",
     parse_function=parse_device,
+    host_label_function=host_labels_unifi_device,
 )
 agent_section_unifi_device_if = AgentSection(
     name="unifi_device_if",
