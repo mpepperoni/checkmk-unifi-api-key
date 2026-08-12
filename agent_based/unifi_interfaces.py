@@ -189,11 +189,10 @@ def check_unifi_device_if(
     port = _port(item, params, section)
     if port is None:
         return
-    up = bool(port.up)
 
     satisfaction = port.satisfaction or 0
     yield Result(state=State.OK, notice=f"Jumbo frames: {'enabled' if port.jumbo else 'disabled'}")
-    if up:
+    if bool(port.up):
         yield from check_levels(
             satisfaction,
             metric_name="unifi_satisfaction",
@@ -201,8 +200,8 @@ def check_unifi_device_if(
             render_func=lambda value: f"{value:.0f}%",
             boundaries=(0, 100),
         )
-    if port.port_poe and port.poe_enable:
-        yield Result(state=State.OK, notice="PoE:  enabled")
+    if bool(port.up) and port.port_poe and port.poe_enable:
+        yield Result(state=State.OK, notice="PoE: enabled")
         yield Result(state=State.OK, notice=f"PoE mode: {port.poe_mode or 'unknown'}")
         yield Result(state=State.OK if port.poe_good is not False else State.WARN, notice=f"PoE status: {port.poe_good or 'unknown'}")
         if port.poe_class:
