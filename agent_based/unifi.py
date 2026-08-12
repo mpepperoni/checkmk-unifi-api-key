@@ -76,7 +76,9 @@ class UnifiLastConnection(UnifiObject):
 class UnifiInterface(UnifiObject):
     """A physical UniFi switch port as exposed by the controller API."""
 
-    aggregated_by: bool | None = None
+    # UniFi uses ``false`` for a regular port and the parent port number for a
+    # member of a link aggregation group.
+    aggregated_by: bool | int | None = None
     anomalies: int | None = None
     autoneg: bool | None = None
     bytes_rate: float | None = Field(default=None, alias="bytes-r")
@@ -129,7 +131,6 @@ class UnifiInterface(UnifiObject):
     tx_multicast: int | None = None
     tx_packets: int | None = None
     up: bool | None = None
-
 
 class UniFiInterfaces(RootModel[dict[str, UnifiInterface]]):
     pass

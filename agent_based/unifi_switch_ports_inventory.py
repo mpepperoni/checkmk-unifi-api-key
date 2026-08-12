@@ -27,7 +27,8 @@ def _port_inventory_columns(port: UnifiInterface) -> dict[str, object]:
         **({"speed_capabilities": port.speed_caps} if port.speed_caps is not None else {}),
         **({"forwarding_mode": port.forward} if port.forward else {}),
         **({"is_uplink": port.is_uplink} if port.is_uplink is not None else {}),
-        **({"aggregated": port.aggregated_by} if port.aggregated_by is not None else {}),
+        # UniFi returns either ``false`` or the parent LAG port index.
+        **({"aggregated_by": port.aggregated_by} if port.aggregated_by is not None else {}),
         **({"isolated": port.isolation} if port.isolation is not None else {}),
         **({"jumbo_frames": port.jumbo} if port.jumbo is not None else {}),
         **({"masked": port.masked} if port.masked is not None else {}),
