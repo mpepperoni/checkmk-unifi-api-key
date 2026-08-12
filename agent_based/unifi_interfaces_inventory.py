@@ -6,7 +6,7 @@
 #
 """Inventory UniFi switch ports in Checkmk's standard interface table."""
 
-from cmk.agent_based.v2 import InventoryPlugin, InventoryResult
+from cmk.agent_based.v2 import InventoryPlugin, InventoryResult, TableRow
 from cmk.plugins.lib.inventory_interfaces import Interface, inventorize_interfaces
 
 from .unifi import UniFiInterfaces
@@ -16,6 +16,14 @@ def _admin_status(port_enabled: bool | None) -> int | None:
     if port_enabled is None:
         return None
     return 1 if port_enabled else 2
+
+
+def _duplex(full_duplex: bool | None) -> str:
+    if full_duplex is True:
+        return "full"
+    if full_duplex is False:
+        return "half"
+    return "unknown"
 
 
 def inventory_unifi_interfaces(section: UniFiInterfaces) -> InventoryResult:
@@ -41,6 +49,17 @@ def inventory_unifi_interfaces(section: UniFiInterfaces) -> InventoryResult:
         interfaces,
         n_total=len(interfaces),
     )
+
+    # The duplex column is displayed by the Checkmk 2.5 inventory UI. Older
+    # Checkmk versions ignore the unknown column, so retain it for forward
+    # compatibility rather than putting this standard interface property into the
+    # UniFi-specific switch-port inventory.
+    for port in section.root.values():
+        yield TableRow(
+            path=["networking", "interfaces"],
+            key_columns={"index": port.port_idx},
+            inventory_columns={"duplex": _duplex(port.full_duplex)},
+        )
 
 
 inventory_plugin_unifi_inf_interfaces = InventoryPlugin(

@@ -18,7 +18,6 @@ def _port_inventory_columns(port: UnifiInterface) -> dict[str, object]:
         **({"media": port.media} if port.media else {}),
         **({"operating_mode": port.op_mode} if port.op_mode else {}),
         **({"autonegotiation": port.autoneg} if port.autoneg is not None else {}),
-        **({"full_duplex": port.full_duplex} if port.full_duplex is not None else {}),
         **({"flow_control_rx": port.flowctrl_rx} if port.flowctrl_rx is not None else {}),
         **({"flow_control_tx": port.flowctrl_tx} if port.flowctrl_tx is not None else {}),
         **({"speed_capabilities": port.speed_caps} if port.speed_caps is not None else {}),

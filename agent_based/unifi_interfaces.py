@@ -97,7 +97,11 @@ def discover_unifi_device_if(
     item_occurrences: dict[str, int] = defaultdict(int)
 
     for interface in interface_section:
-        discover, settings = interfaces.DISCOVERY_DEFAULT_PARAMETERS["discovery_single"]
+        # Match Checkmk's standard interface discovery: an interface is only
+        # discovered after a discovery rule has matched it.  In particular, the
+        # default rule limits discovery to operationally up ports.
+        discover = False
+        settings = interfaces.DISCOVERY_DEFAULT_PARAMETERS["discovery_single"][1]
         for rule in params:
             if "discovery_single" in rule and interfaces._check_single_matching_conditions(
                     interface.attributes, rule["matching_conditions"][1]
