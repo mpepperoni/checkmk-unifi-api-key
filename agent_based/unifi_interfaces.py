@@ -140,6 +140,13 @@ def discover_unifi_device_if(
                 labels.update(label_condition.get("labels", {}))
         labels.update(settings.get("labels", {}))
 
+        port = section.root.get(interface.attributes.index)
+        if port is not None:
+            if port.port_poe and port.poe_enable:
+                labels["cmk/has_poe_active"] = "true"
+            if port.is_uplink:
+                labels["cmk/is_upline_true"] = "true"
+
         discovered_params: dict[str, object] = {
             "item_appearance": item_info.used_appearance,
             "discovered_oper_status": [interface.attributes.oper_status],
