@@ -200,10 +200,18 @@ def check_unifi_device_if(
             render_func=lambda value: f"{value:.0f}%",
             boundaries=(0, 100),
         )
-    if bool(port.up) and port.port_poe and port.poe_enable:
-        yield Result(state=State.OK, notice="PoE: enabled")
+
+    if port.port_poe:
+        if not port.poe_enable:
+            yield Result(state=State.WARN, summary="PoE: disabled")
+            return
+        if not port.poe_good:
+            yield Result(state=State.WARN, summary="PoE: inactive")
+            return
+
+        yield Result(state=State.OK, summary=f"PoE: active")
+        yield Result(state=State.OK, notice=f"Poe state: {port.poe_good or 'unknown'}")
         yield Result(state=State.OK, notice=f"PoE mode: {port.poe_mode or 'unknown'}")
-        yield Result(state=State.OK if port.poe_good is not False else State.WARN, notice=f"PoE status: {port.poe_good or 'unknown'}")
         if port.poe_class:
             yield Result(state=State.OK, notice=f"PoE class: {port.poe_class}")
 
