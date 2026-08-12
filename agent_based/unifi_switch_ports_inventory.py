@@ -12,9 +12,13 @@ from .unifi import UniFiInterfaces, UnifiInterface
 
 
 def _port_inventory_columns(port: UnifiInterface) -> dict[str, object]:
-    """Return non-counter port properties not represented by the standard table."""
+    """Return port properties not represented by ``networking/interfaces``.
+
+    The port name is deliberately omitted: it is already stored as the standard
+    interface alias. Per-port PoE properties are inventorized in the dedicated
+    ``networking/interfaces_poe`` table.
+    """
     columns: dict[str, object] = {
-        "name": port.name,
         **({"media": port.media} if port.media else {}),
         **({"operating_mode": port.op_mode} if port.op_mode else {}),
         **({"autonegotiation": port.autoneg} if port.autoneg is not None else {}),
@@ -30,12 +34,6 @@ def _port_inventory_columns(port: UnifiInterface) -> dict[str, object]:
         **({"stp_state": port.stp_state} if port.stp_state else {}),
         **({"stp_path_cost": port.stp_pathcost} if port.stp_pathcost is not None else {}),
         **({"stp_edge_port": port.stp_edge_port} if port.stp_edge_port is not None else {}),
-        **({"poe_capable": port.port_poe} if port.port_poe is not None else {}),
-        **({"poe_capabilities": port.poe_caps} if port.poe_caps is not None else {}),
-        **({"poe_enabled": port.poe_enable} if port.poe_enable is not None else {}),
-        **({"poe_mode": port.poe_mode} if port.poe_mode else {}),
-        **({"poe_class": port.poe_class} if port.poe_class else {}),
-        **({"poe_good": port.poe_good} if port.poe_good is not None else {}),
     }
 
     # These fields are not available on all UniFi controller and switch versions.

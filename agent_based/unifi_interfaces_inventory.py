@@ -4,11 +4,9 @@
 # (c) 2026 Frank Baier
 # @author Frank Baier <dev@baier-nt.de>
 #
-"""Inventory UniFi switch ports in Checkmk's standard interface table."""
-
+from collections.abc import Mapping
 from cmk.agent_based.v2 import InventoryPlugin, InventoryResult, TableRow
 from cmk.plugins.lib.inventory_interfaces import Interface, inventorize_interfaces
-
 from .unifi import UniFiInterfaces
 
 
@@ -26,8 +24,13 @@ def _duplex(full_duplex: bool | None) -> str:
     return "unknown"
 
 
-def inventory_unifi_interfaces(section: UniFiInterfaces) -> InventoryResult:
+def inventory_unifi_interfaces(
+    params: Mapping[str, object], section: UniFiInterfaces
+) -> InventoryResult:
     """Expose physical UniFi switch ports like standard SNMP switch interfaces."""
+    if not params.get("enabled", True):
+        return
+
     interfaces = [
         Interface(
             index=str(port.port_idx),
@@ -66,4 +69,6 @@ inventory_plugin_unifi_inf_interfaces = InventoryPlugin(
     name="unifi_inf_interfaces",
     sections=["unifi_device_if"],
     inventory_function=inventory_unifi_interfaces,
+    inventory_default_parameters={"enabled": True},
+    inventory_ruleset_name="unifi_interfaces_inventory",
 )
