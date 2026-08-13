@@ -139,16 +139,18 @@ section directly from the controller's `lldp_table`. This preserves LLDP data
 for access points whose `port_table` is empty. When the remote chassis MAC
 matches another managed UniFi device in the same site, the section also carries
 its name, model, management IP address, and type. The inventory is shown under
-`networking.lldp_neighbors`.
+`networking/lldp_neighbors`.
 
-| Checkmk interface property | UniFi source |
+| LLDP column | Value |
 | --- | --- |
-| Index | `port_idx` |
-| Description | `Port <port_idx>` |
-| Alias | Port `name` |
-| Administrative state | `enabled`, or `enable` when needed |
-| Operational state | `up` |
-| Speed | `speed`, converted from Mbit/s to bit/s |
+| Local Port | `Port <local_port_idx>` |
+| Neighbor Port | The resolved remote port index as `Port <port_idx>`; otherwise the LLDP `port_id`. |
+| Port Description | The remote UniFi port alias, if available; otherwise the LLDP `port_id`. |
+| System Description | Model name from `DEVICE_MODELS`, followed by the UniFi model code in parentheses. If the model is unknown to the mapping, only the model code is shown. |
+
+The remote port index and alias can only be resolved for managed UniFi devices
+in the same selected site. Third-party or otherwise unknown LLDP neighbors
+retain the values supplied by LLDP.
 
 ### Service discovery and service names
 
@@ -196,7 +198,8 @@ padding, is therefore identical to the matching **Unifi Interface _port_**
 service. By default, operationally down PoE ports are not discovered.
 
 It reports the PoE mode, output state, detected class, voltage, current, and
-power. A disabled output is OK. An enabled but down port has no PoE state,
+power. The current power is also displayed as a service Perf-O-Meter with a
+0–100 W focus range. A disabled output is OK. An enabled but down port has no PoE state,
 voltage, current, or power result. A powered port with `poe_good=false` is
 WARN, except for the reported `pasv24` mode, which is shown as permanent 24 V.
 The built-in voltage limits depend on the reported class: classes 0–3 use
@@ -238,7 +241,7 @@ The extension provides these rules:
 | --- | --- | --- |
 | **UniFi connection parameters** | Controller host | HTTPS port `443`, certificate validation enabled, legacy API, all sites, and all piggyback options disabled. |
 | **UniFi PoE budget levels** | **Unifi PoE budget** | Total W limit disabled; percentage WARN `95%`, CRIT `98%`. |
-| **UniFi interface inventory** | Device inventory | Enabled. |
+| **UniFi inventory** | Device inventory | Interface and LLDP inventory enabled. |
 
 It also uses two built-in Checkmk rule sets:
 
@@ -261,19 +264,24 @@ Software Inventory.
 | --- | --- |
 | `hardware` / `software` | Device type, model, serial number, and firmware data when reported. |
 | `networking/interfaces` | Standard interface data: index, description, alias, speed, admin state, and operational state. Duplex is empty for a down port. |
+| `networking/lldp_neighbors` | LLDP neighbor identity, remote port, remote port alias, management address, and model description. |
 | `networking/unifi_switch_ports` | UniFi-specific port configuration such as STP, autonegotiation, forwarding mode, 802.1X, and network assignment. |
 | `networking/unifi_interfaces_poe` | Per-port PoE capability, enable state, mode, class, description, and alias. |
 
 ### Avoid duplicate interface inventory
 
 If the same switch is also inventorized through SNMP, both data sources can
-write entries under `networking/interfaces`. To avoid duplicate or conflicting
-entries, use the **UniFi interface inventory** rule and clear **Enable UniFi
-interface inventory** for that host. It is enabled by default.
+write entries under `networking/interfaces` and `networking/lldp_neighbors`.
+Use the **UniFi inventory** rule to choose the affected tables independently:
 
-This only disables the standard UniFi interface inventory table. It does not
-disable SNMP inventory, monitoring services, the UniFi-specific switch-port
-inventory, or the UniFi PoE inventory table.
+- Clear **Enable UniFi interface inventory** to suppress only the standard
+  `networking/interfaces` inventory.
+- Clear **Enable UniFi LLDP inventory** to suppress only the standard
+  `networking/lldp_neighbors` inventory.
+
+Both options are enabled by default. They do not disable SNMP inventory,
+monitoring services, the UniFi-specific switch-port inventory, or the UniFi
+PoE inventory table.
 
 ### PoE inventory values
 
