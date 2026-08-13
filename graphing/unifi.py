@@ -3,10 +3,10 @@
 #
 # (c) 2026 Frank Baier
 # @author Frank Baier <dev@baier-nt.de>
-#from cmk.graphing.v1 import Title
 from cmk.graphing.v1 import translations
 from cmk.graphing.v1.graphs import Graph, MinimalRange, Title
 from cmk.graphing.v1.metrics import Color, DecimalNotation, Metric, Unit
+from cmk.graphing.v1.perfometers import Closed, FocusRange, Open, Perfometer
 
 
 metric_unifi_users = Metric(
@@ -56,6 +56,11 @@ metric_unifi_poe_power = Metric(
     title=Title("PoE power"),
     unit=Unit(DecimalNotation("W")),
     color=Color.LIGHT_GREEN,
+)
+perfometer_unifi_poe_power = Perfometer(
+    name="unifi_poe_power",
+    focus_range=FocusRange(Closed(0), Open(100)),
+    segments=["unifi_poe_power"],
 )
 metric_unifi_poe_voltage = Metric(
     name="unifi_poe_voltage",

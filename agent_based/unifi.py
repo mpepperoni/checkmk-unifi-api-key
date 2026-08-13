@@ -196,11 +196,13 @@ class UnifiLldpNeighbor(UnifiObject):
     local_port_idx: int | None = None
     local_port_name: str | None = None
     port_id: str | None = None
+    port_idx: int | None = None
     power_allocated: int | None = None
     power_requested: int | None = None
     remote_name: str | None = None
     remote_model: str | None = None
     remote_ip: str | None = None
+    remote_port_name: str | None = None
     remote_type: str | None = None
 
 
@@ -333,6 +335,7 @@ DEVICE_MODELS = {
     "U7NHD": "UAP-nanoHD",
     "U6E": "U6-Enterprise",
     "UAL6": "U6-Lite",
+    "UALR6v2": "U6-LR",
     "UAP6": "U6-LR",
     "U6ENT": "U6-Enterprise",
     "U6ENTIW": "U6-Enterprise-IW",
@@ -363,6 +366,7 @@ DEVICE_MODELS = {
     "US48": "US-48-G1",
     "USW24": "USW-24",
     "USW48": "USW-48",
+    "USF5P": "USW-Flex-5",
     "USMINI": "USW-Flex-Mini",
     "US6XG150": "US-XG-6PoE",
     "USL8LP": "USW-Lite-8-PoE",

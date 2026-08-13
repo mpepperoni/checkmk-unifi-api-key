@@ -30,7 +30,7 @@ def inventory_unifi_interfaces(
     params: Mapping[str, object], section: UniFiInterfaces
 ) -> InventoryResult:
     """Expose physical UniFi switch ports like standard SNMP switch interfaces."""
-    if not params.get("enabled", True):
+    if not params.get("enable_interface", True):
         return
 
     interfaces = [
@@ -71,6 +71,6 @@ inventory_plugin_unifi_inf_interfaces = InventoryPlugin(
     name="unifi_inf_interfaces",
     sections=["unifi_device_if"],
     inventory_function=inventory_unifi_interfaces,
-    inventory_default_parameters={"enabled": True},
-    inventory_ruleset_name="unifi_interfaces_inventory",
+    inventory_default_parameters={"enable_interface": True, "enable_lldp": True},
+    inventory_ruleset_name="unifi_inventory",
 )

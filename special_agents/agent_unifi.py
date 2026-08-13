@@ -157,7 +157,34 @@ def lldp_neighbors(
             )
             if key in neighbor
         }
+        uplink = device.get("uplink", {})
+        remote_uplink = remote_device.get("uplink", {}) if remote_device else {}
+        chassis_mac = chassis_id.lower() if isinstance(chassis_id, str) else None
+        uplink_mac = uplink.get("uplink_mac")
+        remote_uplink_mac = remote_uplink.get("uplink_mac")
+        device_mac = device.get("mac")
+        lldp_neighbor["port_idx"] = (
+            uplink.get("uplink_remote_port")
+            if isinstance(uplink_mac, str) and uplink_mac.lower() == chassis_mac
+            else remote_uplink.get("port_idx")
+            if isinstance(remote_uplink_mac, str)
+            and isinstance(device_mac, str)
+            and remote_uplink_mac.lower() == device_mac.lower()
+            else None
+        )
         if remote_device:
+            remote_port = next(
+                (
+                    port
+                    for port in remote_device.get("port_table", [])
+                    if lldp_neighbor["port_idx"] is not None
+                    and isinstance(port, dict)
+                    and port.get("port_idx") == lldp_neighbor["port_idx"]
+                ),
+                None,
+            )
+            if remote_port and isinstance(remote_port.get("name"), str):
+                lldp_neighbor["remote_port_name"] = remote_port["name"]
             lldp_neighbor.update(
                 {
                     f"remote_{key}": remote_device[key]
