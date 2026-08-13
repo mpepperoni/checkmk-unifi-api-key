@@ -127,6 +127,59 @@ def interfaces_with_lldp_neighbors(
     return interfaces
 
 
+def lldp_neighbors(
+        device: dict[str, Any],
+        devices_by_mac: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Return a compact LLDP section, enriched for managed UniFi neighbors."""
+    neighbors = []
+    for neighbor in device.get("lldp_table", []):
+        if not isinstance(neighbor, dict):
+            continue
+
+        chassis_id = neighbor.get("chassis_id")
+        remote_device = (
+            devices_by_mac.get(chassis_id.lower())
+            if isinstance(chassis_id, str)
+            else None
+        )
+        lldp_neighbor = {
+            key: neighbor[key]
+            for key in (
+                "chassis_id",
+                "chassis_id_subtype",
+                "is_wired",
+                "local_port_idx",
+                "local_port_name",
+                "port_id",
+                "power_allocated",
+                "power_requested",
+            )
+            if key in neighbor
+        }
+        if remote_device:
+            lldp_neighbor.update(
+                {
+                    f"remote_{key}": remote_device[key]
+                    for key in ("name", "model", "ip", "type")
+                    if remote_device.get(key) is not None
+                }
+            )
+        neighbors.append(lldp_neighbor)
+    return neighbors
+
+
+def devices_by_mac(
+        devices: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Index UniFi devices by MAC for LLDP neighbor enrichment."""
+    return {
+        mac.lower(): device
+        for device in devices
+        if isinstance(device, dict) and isinstance(mac := device.get("mac"), str)
+    }
+
+
 def fetch_site(
         session: requests.Session,
         api_url: str,
@@ -149,11 +202,13 @@ def fetch_site(
         write_section("unifi_site_users", users)
     print("<<<<>>>>")
     if args.device_piggyback:
+        site_devices_by_mac = devices_by_mac(devices)
         for device in devices:
             host = str(device.get("name") or f"{device.get('model', 'unifi')}-{str(device.get('serial', 'unknown'))[-4:]}")
             piggyback_header(host)
             write_section("unifi_device", device)
             write_section("unifi_device_if", interfaces_with_lldp_neighbors(device))
+            write_section("unifi_device_lldp", lldp_neighbors(device, site_devices_by_mac))
             device_users = [user for user in users if device.get("mac") in {user.get("sw_mac"), user.get("ap_mac")}]
             write_section("unifi_device_users", device_users)
             print("<<<<>>>>")

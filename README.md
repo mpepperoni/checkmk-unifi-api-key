@@ -132,6 +132,15 @@ UniFi ports are passed to Checkmk's standard interface implementation. This
 means that standard Checkmk interface rules, thresholds, metrics, and graphs
 also apply to UniFi interfaces.
 
+## LLDP neighbors
+
+For every device piggyback host, the agent emits a compact `unifi_device_lldp`
+section directly from the controller's `lldp_table`. This preserves LLDP data
+for access points whose `port_table` is empty. When the remote chassis MAC
+matches another managed UniFi device in the same site, the section also carries
+its name, model, management IP address, and type. The inventory is shown under
+`networking.lldp_neighbors`.
+
 | Checkmk interface property | UniFi source |
 | --- | --- |
 | Index | `port_idx` |

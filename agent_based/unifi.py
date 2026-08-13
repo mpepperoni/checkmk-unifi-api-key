@@ -198,6 +198,10 @@ class UnifiLldpNeighbor(UnifiObject):
     port_id: str | None = None
     power_allocated: int | None = None
     power_requested: int | None = None
+    remote_name: str | None = None
+    remote_model: str | None = None
+    remote_ip: str | None = None
+    remote_type: str | None = None
 
 
 class UnifiDevice(UnifiObject):
@@ -294,6 +298,10 @@ class UnifiInterface(UnifiObject):
     up: bool | None = None
 
 class UniFiInterfaces(RootModel[dict[str, UnifiInterface]]):
+    pass
+
+
+class UniFiLldpNeighbors(RootModel[list[UnifiLldpNeighbor]]):
     pass
 
 
@@ -430,6 +438,13 @@ def parse_interfaces(
     return UniFiInterfaces({str(interface.port_idx): interface for interface in interfaces})
 
 
+def parse_lldp_neighbors(
+        string_table: StringTable,
+) -> UniFiLldpNeighbors | None:
+    data = parse_json(string_table)
+    return UniFiLldpNeighbors.model_validate(data) if isinstance(data, list) else None
+
+
 def parse_users(
         string_table: StringTable,
 ) -> UniFiUsers | None:
@@ -516,6 +531,10 @@ agent_section_unifi_device = AgentSection(
 agent_section_unifi_device_if = AgentSection(
     name="unifi_device_if",
     parse_function=parse_interfaces,
+)
+agent_section_unifi_device_lldp = AgentSection(
+    name="unifi_device_lldp",
+    parse_function=parse_lldp_neighbors,
 )
 agent_section_unifi_device_users = AgentSection(
     name="unifi_device_users",
