@@ -182,6 +182,24 @@ class UnifiRadioStatistics(UnifiObject):
     user_num_sta: int | None = Field(default=None, alias="user-num_sta")
 
 
+class UnifiLldpNeighbor(UnifiObject):
+    """An LLDP neighbor reported by the UniFi controller.
+
+    The controller returns this structure in a device's ``lldp_table``.  The
+    special agent also attaches the same object to the corresponding local
+    interface, allowing both sections to use one schema.
+    """
+
+    chassis_id: str | None = None
+    chassis_id_subtype: str | None = None
+    is_wired: bool | None = None
+    local_port_idx: int | None = None
+    local_port_name: str | None = None
+    port_id: str | None = None
+    power_allocated: int | None = None
+    power_requested: int | None = None
+
+
 class UnifiDevice(UnifiObject):
     name: str | None = None
     model: str | None = None
@@ -194,6 +212,7 @@ class UnifiDevice(UnifiObject):
     total_max_effective_power: float | None = None
     total_max_power: float | None = None
     total_used_power: float | None = None
+    lldp_table: list[UnifiLldpNeighbor] = Field(default_factory=list)
     port_table: list[UnifiObject] = []
     vap_table: list[UnifiVap] = []
     radio_table: list[UnifiRadio] = []
@@ -235,6 +254,7 @@ class UnifiInterface(UnifiObject):
     jumbo: bool | None = None
     last_connection: UnifiLastConnection | None = None
     link_down_count: int | None = None
+    lldp_neighbors: list[UnifiLldpNeighbor] = Field(default_factory=list)
     mac_table_count: int | None = None
     masked: bool | None = None
     media: str | None = None

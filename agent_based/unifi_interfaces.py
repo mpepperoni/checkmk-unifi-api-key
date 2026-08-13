@@ -21,7 +21,6 @@ from cmk.agent_based.v2 import (
     check_levels,
 )
 from cmk.plugins.lib import interfaces
-
 from .unifi import UniFiInterfaces, UnifiInterface
 
 
@@ -69,7 +68,7 @@ def _interfaces_section(section: UniFiInterfaces) -> list[interfaces.InterfaceWi
     return interface_section
 
 
-def _port(
+def port_for_item(
         item: str,
         params: Mapping[str, Any],
         section: UniFiInterfaces,
@@ -145,7 +144,9 @@ def discover_unifi_device_if(
             if port.port_poe and port.poe_enable:
                 labels["cmk/has_poe_active"] = "true"
             if port.is_uplink:
-                labels["cmk/is_upline_true"] = "true"
+                labels["cmk/is_uplink_true"] = "true"
+            if port.lldp_neighbors:
+                labels["cmk/has_lldp_neighbor"] = "true"
 
         discovered_params: dict[str, object] = {
             "item_appearance": item_info.used_appearance,
@@ -185,86 +186,6 @@ def check_unifi_device_if(
         params,
         _interfaces_section(section),
     )
-
-    port = _port(item, params, section)
-    if port is None:
-        return
-
-    satisfaction = port.satisfaction or 0
-    yield Result(state=State.OK, notice=f"Jumbo frames: {'enabled' if port.jumbo else 'disabled'}")
-    if bool(port.up):
-        yield from check_levels(
-            satisfaction,
-            metric_name="unifi_satisfaction",
-            label="Satisfaction",
-            render_func=lambda value: f"{value:.0f}%",
-            boundaries=(0, 100),
-        )
-
-    """
-    | Feld          | Bedeutung                                                                 |
-    | ------------- | ------------------------------------------------------------------------- |
-    | `port_poe`    | Dieser physische Switchport **unterstützt PoE**                           |
-    | `poe_caps`    | Bitmaske/Fähigkeiten des Ports bzgl. PoE                                  |
-    | `poe_mode`    | Konfiguration des Ports, z. B. `auto`, `off`, ältere Geräte auch `pasv24` |
-    | `poe_enable`  | PoE-Ausgabe ist auf diesem Port **aktiviert/freigegeben**                 |
-    | `poe_good`    | Switch hat einen gültigen PoE-Zustand / ein PD erkannt und versorgt es    |
-    | `poe_class`   | erkannte IEEE-PoE-Leistungsklasse des angeschlossenen PD                  |
-    | `poe_voltage` | aktuell ausgegebene PoE-Spannung                                          |
-    | `poe_current` | aktueller Strom                                                           |
-    | `poe_power`   | aktuell abgegebene Leistung in Watt                                       |
-
-    port_poe      → kann dieser Port PoE?
-    poe_mode      → ist PoE administrativ erlaubt?
-    poe_enable    → ist der PoE-Ausgang aktuell eingeschaltet?
-    poe_good      → wurde ein gültiges PD erkannt / wird tatsächlich versorgt?
-    """
-    if port.port_poe:
-        if not port.poe_enable:
-            yield Result(state=State.OK, summary="PoE: disabled")
-            return
-        if not port.poe_good:
-            yield Result(state=State.OK, summary="PoE: inactive")
-            return
-
-        yield Result(state=State.OK, summary=f"PoE: active")
-        yield Result(state=State.OK, notice=f"Poe state: {port.poe_good or 'unknown'}")
-        yield Result(state=State.OK, notice=f"PoE mode: {port.poe_mode or 'unknown'}")
-        if port.poe_class:
-            yield Result(state=State.OK, notice=f"PoE class: {port.poe_class}")
-
-        # voltage
-        if port.poe_voltage is not None:
-            yield from check_levels(
-                port.poe_voltage,
-                metric_name="unifi_poe_voltage",
-                label="PoE voltage",
-                render_func=lambda value: f"{value:.2f} V",
-                notice_only=True,
-            )
-
-        # current
-        if port.poe_current is not None:
-            yield from check_levels(
-                port.poe_current,
-                metric_name="unifi_poe_current",
-                label="PoE current",
-                render_func=lambda value: f"{value:.2f} mA",
-                notice_only=True,
-            )
-
-        # power
-        poe_power = port.poe_power or 0.0
-        yield from check_levels(
-            poe_power,
-            metric_name="unifi_poe_power",
-            label="PoE power",
-            render_func=lambda value: f"{value:.2f} W",
-        )
-    else:
-        yield Result(state=State.OK, notice="PoE: disabled or no POE-Port")
-
-
 
 check_plugin_unifi_interfaces = CheckPlugin(
     name="unifi_interfaces",

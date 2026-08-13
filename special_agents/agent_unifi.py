@@ -105,6 +105,28 @@ def user_piggyback_hostname(
     return f"{hostname}.{domain}"
 
 
+def interfaces_with_lldp_neighbors(
+        device: dict[str, Any],
+) -> list[dict[str, Any]]:
+    lldp_neighbors_by_port: dict[Any, list[dict[str, Any]]] = {}
+    for lldp_neighbor in device.get("lldp_table", []):
+        if not isinstance(lldp_neighbor, dict):
+            continue
+        local_port_idx = lldp_neighbor.get("local_port_idx")
+        if local_port_idx is None:
+            continue
+        lldp_neighbors_by_port.setdefault(local_port_idx, []).append(lldp_neighbor)
+    interfaces = []
+    for port in device.get("port_table", []):
+        if not isinstance(port, dict):
+            continue
+        interface = port.copy()
+        if lldp_neighbors := lldp_neighbors_by_port.get(interface.get("port_idx")):
+            interface["lldp_neighbors"] = lldp_neighbors
+        interfaces.append(interface)
+    return interfaces
+
+
 def fetch_site(
         session: requests.Session,
         api_url: str,
@@ -131,7 +153,7 @@ def fetch_site(
             host = str(device.get("name") or f"{device.get('model', 'unifi')}-{str(device.get('serial', 'unknown'))[-4:]}")
             piggyback_header(host)
             write_section("unifi_device", device)
-            write_section("unifi_device_if", device.get("port_table", []))
+            write_section("unifi_device_if", interfaces_with_lldp_neighbors(device))
             device_users = [user for user in users if device.get("mac") in {user.get("sw_mac"), user.get("ap_mac")}]
             write_section("unifi_device_users", device_users)
             print("<<<<>>>>")

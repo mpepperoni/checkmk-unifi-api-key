@@ -96,8 +96,9 @@ names cause data to be written to the same piggyback host and can mix services.
 IP-based client names are usually unique but can change with DHCP.
 
 Typical device services include **UniFi Device**, **UniFi Environment**,
-**UniFi Radio**, **UniFi SSID**, **Unifi Interface _port_**, and **Unifi PoE
-budget**. The exact list depends on the device type and its reported data.
+**UniFi Radio**, **UniFi SSID**, **Unifi Interface _port_**, **Unifi PoE
+Interface _port_**, and **Unifi PoE budget**. The exact list depends on the
+device type and its reported data.
 
 ## Service states, metrics, and built-in thresholds
 
@@ -164,12 +165,9 @@ Traffic counters, packet counters, errors, discards, broadcasts, and multicasts
 are handed to the Checkmk interface library. As a result, Checkmk's normal
 interface metrics and graphs are used instead of custom copies.
 
-The service also adds UniFi-specific information, such as jumbo-frame status,
-satisfaction, and PoE details. If PoE is enabled for a port, Checkmk reports
-the PoE mode, class, power in W, voltage in V, and current in mA. A failed
-`poe_good` value is shown as **PoE: inactive** but is OK by default. Disabled
-PoE and ports without PoE capability are also OK. Satisfaction, PoE power,
-voltage, and current have no extension-specific thresholds by default.
+The service also adds UniFi-specific information, such as jumbo-frame status
+and satisfaction. PoE values are reported by the separate **Unifi PoE
+Interface _port_** service.
 
 The complete built-in Checkmk **Network interfaces** rule applies to this
 service. Its default error-rate level for errors in both directions is WARN at
@@ -177,6 +175,27 @@ service. Its default error-rate level for errors in both directions is WARN at
 and speed, traffic, packet/error/discard levels, averaging, and interface
 groups are available as well. Configure them with the standard interface rule,
 not a UniFi-specific rule.
+
+### PoE interface services
+
+The `unifi_poe_interfaces` check uses the same `unifi_device_if` agent section
+and exactly the same **Switch port discovery** rules as `unifi_interfaces`.
+It discovers one **Unifi PoE Interface _port_** service only where UniFi
+reports `port_poe=true` and the port matches the discovery rule. The item name,
+including index, description, alias, duplicate-name handling, and port-number
+padding, is therefore identical to the matching **Unifi Interface _port_**
+service. By default, operationally down PoE ports are not discovered.
+
+It reports the PoE mode, output state, detected class, voltage, current, and
+power. A disabled output is OK. An enabled but down port has no PoE state,
+voltage, current, or power result. A powered port with `poe_good=false` is
+WARN, except for the reported `pasv24` mode, which is shown as permanent 24 V.
+The built-in voltage limits depend on the reported class: classes 0–3 use
+44.2/44.0 V lower WARN/CRIT and 56.8/57.0 V upper WARN/CRIT; classes 4–6 use
+50.2/50.0 V lower WARN/CRIT and the same upper limits; classes 7–8 use
+52.2/52.0 V lower WARN/CRIT and the same upper limits. Voltage uses
+`notice_only`, so these levels are shown as notices and do not change the
+service state. Current and power have no default levels.
 
 ## PoE budget
 
