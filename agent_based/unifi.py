@@ -364,6 +364,7 @@ DEVICE_MODELS = {
     "US8": "US-8",
     "US24": "US-24-G1",
     "US48": "US-48-G1",
+    "US24P250": "US 24 PoE 250W",
     "USW24": "USW-24",
     "USW48": "USW-48",
     "USF5P": "USW-Flex-5",
