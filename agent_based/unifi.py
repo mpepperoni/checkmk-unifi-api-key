@@ -305,49 +305,11 @@ class UnifiInterface(UnifiObject):
 # derive it from the port's semantic properties instead of its index.
 IF_TYPE_OTHER = "1"
 IF_TYPE_ETHERNET_CSMACD = "6"
-IF_TYPE_IEEE8023AD_LAG = "161"
-
-
-def _positive_if_type(value: Any) -> str | None:
-    """Return a valid numeric IF-MIB type, if UniFi supplied one explicitly."""
-    try:
-        if_type = int(value)
-    except (TypeError, ValueError):
-        return None
-    return str(if_type) if if_type > 0 else None
 
 
 def interface_type(port: UnifiInterface) -> str:
-    """Determine the IF-MIB type of a UniFi interface without index heuristics.
-
-    A virtual aggregate is identified by its controller type or by a member
-    list which does not contain the interface's own index. UniFi also adds
-    ``aggregate_members`` to the primary *physical* member of a LAG; that list
-    contains the port itself and must remain ethernet. ``aggregated_by`` also
-    identifies physical member ports, which remain ethernet interfaces.
-    """
-    controller_type = str(port.value("type", "")).strip().lower()
-    aggregate_members = port.value("aggregate_members")
-    if controller_type in {"lag", "aggregate", "aggregation", "ieee8023adlag"} or (
-        isinstance(aggregate_members, (list, tuple))
-        and port.port_idx not in aggregate_members
-    ):
-        return IF_TYPE_IEEE8023AD_LAG
-
-    # Newer controller versions may eventually provide the IF-MIB type
-    # directly. Honour an unambiguous value before applying legacy inference.
-    for field in ("if_type", "ifType", "interface_type", "interfaceType"):
-        if (explicit_type := _positive_if_type(port.value(field))) not in (None, IF_TYPE_OTHER):
-            return explicit_type
-
-    name = port.name.lower()
+    """Return ethernetCsmacd for known physical Ethernet media, otherwise other."""
     media = str(port.media or "").upper()
-    if "cpu" in name or "cpu" in media:
-        return IF_TYPE_OTHER
-
-    # ``media`` is the controller's portable indication for a physical
-    # ethernet port (GE, SFP+, RJ45, ...).  Do not use speed: virtual CPU and
-    # aggregate interfaces may expose a speed as well.
     if (
         media in {"FE", "GE", "2.5G", "5G", "10G", "25G", "40G", "100G"}
         or "ETH" in media
@@ -355,12 +317,6 @@ def interface_type(port: UnifiInterface) -> str:
         or "RJ45" in media
     ):
         return IF_TYPE_ETHERNET_CSMACD
-
-    # Preserve an explicit ``other`` for controller-internal and unknown
-    # interfaces, such as a switch CPU interface.
-    for field in ("if_type", "ifType", "interface_type", "interfaceType", "type"):
-        if (explicit_type := _positive_if_type(port.value(field))) is not None:
-            return explicit_type
     return IF_TYPE_OTHER
 
 

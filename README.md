@@ -130,14 +130,17 @@ The interface check is named `unifi_interfaces`. It uses the existing
 
 UniFi ports are passed to Checkmk's standard interface implementation. This
 means that standard Checkmk interface rules, thresholds, metrics, and graphs
-also apply to UniFi interfaces. The interface type is derived from the UniFi
-port data, not from its index: physical Ethernet media such as GE and SFP use
-IF-MIB type `6` (`ethernetCsmacd`), a virtual aggregation with controller type
-`lag` or an `aggregate_members` list that does not contain its own index uses
-type `161` (`ieee8023adLag`), and controller-internal interfaces such as a CPU
-interface remain type `1` (`other`). A physical member of a LAG, including
-UniFi's primary member which can also contain `aggregate_members`, remains an
-Ethernet interface; only the virtual aggregate is type `161`.
+also apply to UniFi interfaces. The agent passes through every interface which
+the controller returns in `port_table`; it does not create additional virtual
+interfaces.
+
+The currently used controller endpoint supplies LAG membership configuration
+but does not supply independent virtual LAG interfaces, their IF-MIB indices,
+or CPU interfaces when they are absent from `port_table`. Therefore such
+interfaces cannot be created or inventorized by this extension from that API
+response alone. Monitoring them requires an additional data source, such as
+SNMP IF-MIB/LAG-MIB data, or a UniFi endpoint that exposes the virtual
+interfaces with their operational values.
 
 ## LLDP neighbors
 
@@ -169,10 +172,9 @@ port (for example, local ports 51/52 map to remote ports 9/10).
 Use the standard Checkmk **Switch port discovery** / interface discovery rules
 to choose which ports become services and how they are named. The normal
 default behaviour is preserved: operationally up Ethernet ports (interface
-type `6`) are discovered. A LAG with type `161` is therefore only discovered
-when a matching discovery rule includes that port type. Ports that are
-operationally down are not discovered unless a matching rule explicitly
-includes them.
+type `6`) are discovered. Ports that are operationally down or use another
+interface type are not discovered unless a matching rule explicitly includes
+them.
 
 The naming options match standard interfaces:
 
@@ -261,7 +263,7 @@ It also uses two built-in Checkmk rule sets:
 
 | Built-in rule | Used for | Relevant default |
 | --- | --- | --- |
-| **Switch port discovery** (`inventory_if_rules`) | Discovering and naming **Unifi Interface** services | Up Ethernet ports only by default; add IF-MIB type `161` to a rule to discover LAGs. The item is the port index and port numbers are padded with leading zeroes. |
+| **Switch port discovery** (`inventory_if_rules`) | Discovering and naming **Unifi Interface** services | Up Ethernet ports only by default. Add the required port type to a rule to discover other interfaces. The item is the port index and port numbers are padded with leading zeroes. |
 | **Network interfaces** (`interfaces`) | Checking **Unifi Interface** services | Error rate in both directions: WARN `0.01%`, CRIT `0.1%`. All other normal interface parameters remain available. |
 
 Changing a switch-port naming option or its matching conditions requires a new
