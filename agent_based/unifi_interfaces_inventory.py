@@ -7,7 +7,7 @@
 from collections.abc import Mapping
 from cmk.agent_based.v2 import InventoryPlugin, InventoryResult, TableRow
 from cmk.plugins.lib.inventory_interfaces import Interface, inventorize_interfaces
-from .unifi import UniFiInterfaces
+from .unifi import UniFiInterfaces, interface_type
 
 
 def _admin_status(port_enabled: bool | None) -> int | None:
@@ -29,7 +29,7 @@ def _duplex(full_duplex: bool | None, port_up: bool | None) -> str:
 def inventory_unifi_interfaces(
     params: Mapping[str, object], section: UniFiInterfaces
 ) -> InventoryResult:
-    """Expose physical UniFi switch ports like standard SNMP switch interfaces."""
+    """Expose UniFi ports and virtual interfaces like standard SNMP interfaces."""
     if not params.get("enable_interface", True):
         return
 
@@ -38,7 +38,7 @@ def inventory_unifi_interfaces(
             index=str(port.port_idx),
             descr=f"Port {port.port_idx}",
             alias=port.name,
-            type="6",  # ethernetCsmacd
+            type=interface_type(port),
             speed=(port.speed or 0) * 1_000_000,
             oper_status=1 if port.up else 2,
             # UniFi does not provide the switch port's own physical MAC address.

@@ -21,7 +21,7 @@ from cmk.agent_based.v2 import (
     check_levels,
 )
 from cmk.plugins.lib import interfaces
-from .unifi import UniFiInterfaces, UnifiInterface
+from .unifi import UniFiInterfaces, UnifiInterface, interface_type
 
 
 def _interfaces_section(section: UniFiInterfaces) -> list[interfaces.InterfaceWithCounters]:
@@ -39,7 +39,7 @@ def _interfaces_section(section: UniFiInterfaces) -> list[interfaces.InterfaceWi
                     index=str(port.port_idx),
                     descr=f"Port {port.port_idx}",
                     alias=port.name,
-                    type="6",  # ethernetCsmacd
+                    type=interface_type(port),
                     speed=(port.speed or 0) * 1_000_000,
                     oper_status="1" if port.up else "2",
                     admin_status=(
