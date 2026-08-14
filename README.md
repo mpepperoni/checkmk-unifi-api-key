@@ -152,6 +152,11 @@ The remote port index and alias can only be resolved for managed UniFi devices
 in the same selected site. Third-party or otherwise unknown LLDP neighbors
 retain the values supplied by LLDP.
 
+For a link aggregation group, UniFi exposes only the first member through its
+normal uplink field. The agent therefore pairs the sorted, reciprocal LLDP
+entries of a managed LAG, so each physical member retains its matching remote
+port (for example, local ports 51/52 map to remote ports 9/10).
+
 ### Service discovery and service names
 
 Use the standard Checkmk **Switch port discovery** / interface discovery rules

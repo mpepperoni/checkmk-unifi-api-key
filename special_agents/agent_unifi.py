@@ -127,6 +127,77 @@ def interfaces_with_lldp_neighbors(
     return interfaces
 
 
+def lldp_lag_remote_port_idx(
+        device: dict[str, Any],
+        neighbor: dict[str, Any],
+        remote_device: dict[str, Any] | None,
+) -> int | None:
+    """Resolve an LLDP port within a LAG from its reciprocal LLDP entries.
+
+    UniFi's ``uplink_remote_port`` describes only one member of an aggregate.
+    Consequently it maps every member of a LAG to that first port.  Both ends
+    do however report one LLDP entry per physical link.  When the local port
+    belongs to a LAG, pair the sorted local members with the sorted reciprocal
+    remote ports.  This makes the mapping deterministic while retaining the
+    existing uplink-based fallback for ordinary links.
+    """
+    local_port_idx = neighbor.get("local_port_idx")
+    remote_mac = neighbor.get("chassis_id")
+    device_mac = device.get("mac")
+    if not (
+        remote_device
+        and isinstance(local_port_idx, int)
+        and isinstance(remote_mac, str)
+        and isinstance(device_mac, str)
+    ):
+        return None
+
+    lag_members = next(
+        (
+            group.get("aggregate_members")
+            for group in device.get("link_aggregation_groups", [])
+            if isinstance(group, dict)
+            and isinstance(group.get("aggregate_members"), list)
+            and local_port_idx in group["aggregate_members"]
+        ),
+        None,
+    )
+    if not lag_members:
+        return None
+
+    local_members = sorted(
+        entry["local_port_idx"]
+        for entry in device.get("lldp_table", [])
+        if isinstance(entry, dict)
+        and entry.get("local_port_idx") in lag_members
+        and isinstance(entry.get("local_port_idx"), int)
+        and isinstance(entry.get("chassis_id"), str)
+        and entry["chassis_id"].lower() == remote_mac.lower()
+    )
+    remote_member_groups = [
+        sorted(
+            entry["local_port_idx"]
+            for entry in remote_device.get("lldp_table", [])
+            if isinstance(entry, dict)
+            and entry.get("local_port_idx") in members
+            and isinstance(entry.get("local_port_idx"), int)
+            and isinstance(entry.get("chassis_id"), str)
+            and entry["chassis_id"].lower() == device_mac.lower()
+        )
+        for group in remote_device.get("link_aggregation_groups", [])
+        if isinstance(group, dict)
+        and isinstance(members := group.get("aggregate_members"), list)
+    ]
+    matching_remote_groups = [
+        members for members in remote_member_groups if len(members) == len(local_members)
+    ]
+    if len(local_members) < 2 or len(matching_remote_groups) != 1:
+        return None
+
+    remote_members = matching_remote_groups[0]
+    return remote_members[local_members.index(local_port_idx)]
+
+
 def lldp_neighbors(
         device: dict[str, Any],
         devices_by_mac: dict[str, dict[str, Any]],
@@ -163,15 +234,19 @@ def lldp_neighbors(
         uplink_mac = uplink.get("uplink_mac")
         remote_uplink_mac = remote_uplink.get("uplink_mac")
         device_mac = device.get("mac")
-        lldp_neighbor["port_idx"] = (
-            uplink.get("uplink_remote_port")
-            if isinstance(uplink_mac, str) and uplink_mac.lower() == chassis_mac
-            else remote_uplink.get("port_idx")
-            if isinstance(remote_uplink_mac, str)
-            and isinstance(device_mac, str)
-            and remote_uplink_mac.lower() == device_mac.lower()
-            else None
+        lldp_neighbor["port_idx"] = lldp_lag_remote_port_idx(
+            device, neighbor, remote_device
         )
+        if lldp_neighbor["port_idx"] is None:
+            lldp_neighbor["port_idx"] = (
+                uplink.get("uplink_remote_port")
+                if isinstance(uplink_mac, str) and uplink_mac.lower() == chassis_mac
+                else remote_uplink.get("port_idx")
+                if isinstance(remote_uplink_mac, str)
+                and isinstance(device_mac, str)
+                and remote_uplink_mac.lower() == device_mac.lower()
+                else None
+            )
         if remote_device:
             remote_port = next(
                 (
