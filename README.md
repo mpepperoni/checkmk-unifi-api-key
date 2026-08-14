@@ -132,11 +132,12 @@ UniFi ports are passed to Checkmk's standard interface implementation. This
 means that standard Checkmk interface rules, thresholds, metrics, and graphs
 also apply to UniFi interfaces. The interface type is derived from the UniFi
 port data, not from its index: physical Ethernet media such as GE and SFP use
-IF-MIB type `6` (`ethernetCsmacd`), a virtual aggregation with
-`aggregate_members` or controller type `lag` uses type `161`
-(`ieee8023adLag`), and controller-internal interfaces such as a CPU interface
-remain type `1` (`other`). A physical member of a LAG remains an Ethernet
-interface; only the virtual aggregate is type `161`.
+IF-MIB type `6` (`ethernetCsmacd`), a virtual aggregation with controller type
+`lag` or an `aggregate_members` list that does not contain its own index uses
+type `161` (`ieee8023adLag`), and controller-internal interfaces such as a CPU
+interface remain type `1` (`other`). A physical member of a LAG, including
+UniFi's primary member which can also contain `aggregate_members`, remains an
+Ethernet interface; only the virtual aggregate is type `161`.
 
 ## LLDP neighbors
 

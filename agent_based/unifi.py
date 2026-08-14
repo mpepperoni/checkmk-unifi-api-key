@@ -320,15 +320,17 @@ def _positive_if_type(value: Any) -> str | None:
 def interface_type(port: UnifiInterface) -> str:
     """Determine the IF-MIB type of a UniFi interface without index heuristics.
 
-    A virtual aggregate is identified by its member list or its controller
-    type. ``aggregated_by`` intentionally does *not* identify an aggregate:
-    it is set on physical member ports, which remain ethernet interfaces.
+    A virtual aggregate is identified by its controller type or by a member
+    list which does not contain the interface's own index. UniFi also adds
+    ``aggregate_members`` to the primary *physical* member of a LAG; that list
+    contains the port itself and must remain ethernet. ``aggregated_by`` also
+    identifies physical member ports, which remain ethernet interfaces.
     """
     controller_type = str(port.value("type", "")).strip().lower()
     aggregate_members = port.value("aggregate_members")
-    if (
-        controller_type in {"lag", "aggregate", "aggregation", "ieee8023adlag"}
-        or isinstance(aggregate_members, (list, tuple))
+    if controller_type in {"lag", "aggregate", "aggregation", "ieee8023adlag"} or (
+        isinstance(aggregate_members, (list, tuple))
+        and port.port_idx not in aggregate_members
     ):
         return IF_TYPE_IEEE8023AD_LAG
 
