@@ -130,7 +130,13 @@ The interface check is named `unifi_interfaces`. It uses the existing
 
 UniFi ports are passed to Checkmk's standard interface implementation. This
 means that standard Checkmk interface rules, thresholds, metrics, and graphs
-also apply to UniFi interfaces.
+also apply to UniFi interfaces. The interface type is derived from the UniFi
+port data, not from its index: physical Ethernet media such as GE and SFP use
+IF-MIB type `6` (`ethernetCsmacd`), a virtual aggregation with
+`aggregate_members` or controller type `lag` uses type `161`
+(`ieee8023adLag`), and controller-internal interfaces such as a CPU interface
+remain type `1` (`other`). A physical member of a LAG remains an Ethernet
+interface; only the virtual aggregate is type `161`.
 
 ## LLDP neighbors
 
@@ -162,8 +168,10 @@ port (for example, local ports 51/52 map to remote ports 9/10).
 Use the standard Checkmk **Switch port discovery** / interface discovery rules
 to choose which ports become services and how they are named. The normal
 default behaviour is preserved: operationally up Ethernet ports (interface
-type `6`) are discovered. Ports that are operationally down are not discovered
-unless a matching rule explicitly includes them.
+type `6`) are discovered. A LAG with type `161` is therefore only discovered
+when a matching discovery rule includes that port type. Ports that are
+operationally down are not discovered unless a matching rule explicitly
+includes them.
 
 The naming options match standard interfaces:
 
@@ -252,7 +260,7 @@ It also uses two built-in Checkmk rule sets:
 
 | Built-in rule | Used for | Relevant default |
 | --- | --- | --- |
-| **Switch port discovery** (`inventory_if_rules`) | Discovering and naming **Unifi Interface** services | Up Ethernet ports only; item is the port index; port numbers are padded with leading zeroes. |
+| **Switch port discovery** (`inventory_if_rules`) | Discovering and naming **Unifi Interface** services | Up Ethernet ports only by default; add IF-MIB type `161` to a rule to discover LAGs. The item is the port index and port numbers are padded with leading zeroes. |
 | **Network interfaces** (`interfaces`) | Checking **Unifi Interface** services | Error rate in both directions: WARN `0.01%`, CRIT `0.1%`. All other normal interface parameters remain available. |
 
 Changing a switch-port naming option or its matching conditions requires a new
@@ -268,7 +276,7 @@ Software Inventory.
 | Inventory path | Contents |
 | --- | --- |
 | `hardware` / `software` | Device type, model, serial number, and firmware data when reported. |
-| `networking/interfaces` | Standard interface data: index, description, alias, speed, admin state, and operational state. Duplex is empty for a down port. |
+| `networking/interfaces` | Standard interface data: index, description, alias, IF-MIB type, speed, admin state, and operational state. Duplex is empty for a down port. |
 | `networking/lldp_neighbors` | LLDP neighbor identity, remote port, remote port alias, management address, and model description. |
 | `networking/unifi_switch_ports` | UniFi-specific port configuration such as STP, autonegotiation, forwarding mode, 802.1X, and network assignment. |
 | `networking/unifi_interfaces_poe` | Per-port PoE capability, enable state, mode, class, description, and alias. |
