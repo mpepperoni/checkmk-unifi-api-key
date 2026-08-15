@@ -12,6 +12,7 @@ from cmk.inventory_ui.v1_unstable import (
     BackgroundColor,
     ChoiceField,
     Node,
+    NumberField,
     Table,
     TextField,
     Title,
@@ -38,6 +39,26 @@ def _style_poe_capable(value: str) -> Iterable[BackgroundColor]:
         yield BackgroundColor.DARK_GRAY
 
 
+def _style_poe_enabled(value: str) -> Iterable[BackgroundColor]:
+    if value == poe_enabled_mapping[True]:
+        yield BackgroundColor.LIGHT_GREEN
+    else:
+        yield BackgroundColor.DARK_GRAY
+
+
+def _style_poe_mode(
+        value: str
+) -> Iterable[BackgroundColor]:
+    if value == poe_mode_mapping.get("auto"):
+        yield BackgroundColor.LIGHT_GREEN
+    elif value == poe_mode_mapping.get("pasv24"):
+        yield BackgroundColor.LIGHT_YELLOW
+    elif value == poe_mode_mapping.get("passthrough"):
+        yield BackgroundColor.LIGHT_BLUE
+    else:
+        yield BackgroundColor.DARK_RED
+
+
 node_networking_unifi_interfaces_poe = Node(
     name="networking_unifi_interfaces_poe",
     path=["networking", "unifi_interfaces_poe"],
@@ -45,13 +66,18 @@ node_networking_unifi_interfaces_poe = Node(
     table=Table(
         view=View(name="invunifiinterfacespoe", title=Title("Unifi PoE Interfaces")),
         columns={
-            "index": TextField(Title("Index")),
+            "index": NumberField(Title("Index")),
             "descr": TextField(Title("Description")),
             "alias": TextField(Title("Alias")),
             "poe_capable": ChoiceField(
                 Title("PoE capable"),
                 mapping=_choice_mapping(poe_capable_mapping),
                 style=_style_poe_capable,
+            ),
+            "poe_mode": ChoiceField(
+                Title("PoE mode"),
+                mapping=_choice_mapping(poe_mode_mapping),
+                style=_style_poe_mode,
             ),
             "poe_capabilities": ChoiceField(
                 Title("PoE capabilities"),
@@ -60,10 +86,7 @@ node_networking_unifi_interfaces_poe = Node(
             "poe_enabled": ChoiceField(
                 Title("PoE enabled"),
                 mapping=_choice_mapping(poe_enabled_mapping),
-            ),
-            "poe_mode": ChoiceField(
-                Title("PoE mode"),
-                mapping=_choice_mapping(poe_mode_mapping),
+                style=_style_poe_enabled,
             ),
             "poe_class": ChoiceField(
                 Title("PoE class"),

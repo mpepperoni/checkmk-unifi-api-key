@@ -11,6 +11,7 @@ from cmk.plugins.collection.inventory_ui import networking
 _DUPLEX_FIELD = ChoiceField(
     Title("Duplex"),
     mapping={
+        "": "",
         "half": "half",
         "full": "full",
         "disagree": "disagree",

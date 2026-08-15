@@ -47,18 +47,25 @@ poe_capabilities_mapping = {
 }
 
 
-def _mapped_value(value: object, mapping: Mapping[object, str]) -> str:
+def _mapped_value(
+        value: object,
+        mapping: Mapping[object, str]
+) -> str:
     """Return the raw API value if the controller reports an unknown setting."""
     return mapping.get(value, str(value))
 
 
-def _poe_capabilities(value: int) -> str:
+def _poe_capabilities(
+        value: int
+) -> str:
     """Render known UniFi PoE capability masks with a readable fallback."""
     return _mapped_value(value, poe_capabilities_mapping)
 
 
-def _poe_inventory_columns(port: UnifiInterface) -> dict[str, object]:
-    columns: dict[str, object] = {
+def _poe_inventory_columns(
+        port: UnifiInterface
+) -> dict[str,  int | float | str | bool | None] | None:
+    columns: dict[str,  int | float | str | bool | None] | None = {
         "descr": f"Port {port.port_idx}",
         "alias": port.name,
     }
@@ -75,12 +82,14 @@ def _poe_inventory_columns(port: UnifiInterface) -> dict[str, object]:
     return columns
 
 
-def inventory_unifi_switch_ports_poe(section: UniFiInterfaces) -> InventoryResult:
+def inventory_unifi_switch_ports_poe(
+        section: UniFiInterfaces
+) -> InventoryResult:
     """Store the PoE configuration reported for each UniFi switch port."""
     for port in section.root.values():
         yield TableRow(
             path=["networking", "unifi_interfaces_poe"],
-            key_columns={"index": str(port.port_idx)},
+            key_columns={"index": port.port_idx},
             inventory_columns=_poe_inventory_columns(port),
         )
 

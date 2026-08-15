@@ -8,7 +8,7 @@ from __future__ import annotations
 import argparse
 import pathlib
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 import requests
 import urllib3
@@ -107,10 +107,13 @@ def user_piggyback_hostname(
 
 def interfaces_with_lldp_neighbors(
         device: dict[str, Any],
+        wired_clients_by_switch_port: Mapping[tuple[str, int], set[str]],
 ) -> list[dict[str, Any]]:
     lldp_neighbors_by_port: dict[Any, list[dict[str, Any]]] = {}
     for lldp_neighbor in device.get("lldp_table", []):
-        if not isinstance(lldp_neighbor, dict):
+        if not isinstance(lldp_neighbor, dict) or is_wired_client_lldp_entry(
+            device, lldp_neighbor, wired_clients_by_switch_port
+        ):
             continue
         local_port_idx = lldp_neighbor.get("local_port_idx")
         if local_port_idx is None:
@@ -125,6 +128,50 @@ def interfaces_with_lldp_neighbors(
             interface["lldp_neighbors"] = lldp_neighbors
         interfaces.append(interface)
     return interfaces
+
+
+def wired_clients_by_switch_port(
+        users: list[dict[str, Any]],
+) -> dict[tuple[str, int], set[str]]:
+    """Index wired UniFi clients by the switch port that serves them.
+
+    Recent UniFi controller versions can add a wired client's MAC address to a
+    switch's ``lldp_table``.  A client is not an LLDP neighbor; its presence
+    can be identified reliably through its matching ``sw_mac`` and
+    ``sw_port`` in the controller's client data.
+    """
+    clients: dict[tuple[str, int], set[str]] = {}
+    for user in users:
+        if not (
+            isinstance(user, dict)
+            and user.get("is_wired") is True
+            and isinstance(switch_mac := user.get("sw_mac"), str)
+            and isinstance(switch_port := user.get("sw_port"), int)
+            and isinstance(client_mac := user.get("mac"), str)
+        ):
+            continue
+        clients.setdefault((switch_mac.lower(), switch_port), set()).add(
+            client_mac.lower()
+        )
+    return clients
+
+
+def is_wired_client_lldp_entry(
+        device: dict[str, Any],
+        neighbor: dict[str, Any],
+        wired_clients: Mapping[tuple[str, int], set[str]],
+) -> bool:
+    """Return whether a purported LLDP entry is a UniFi wired client."""
+    device_mac = device.get("mac")
+    local_port = neighbor.get("local_port_idx")
+    chassis_id = neighbor.get("chassis_id")
+    return (
+        isinstance(device_mac, str)
+        and isinstance(local_port, int)
+        and isinstance(chassis_id, str)
+        and chassis_id.lower()
+        in wired_clients.get((device_mac.lower(), local_port), set())
+    )
 
 
 def lldp_lag_remote_port_idx(
@@ -201,11 +248,14 @@ def lldp_lag_remote_port_idx(
 def lldp_neighbors(
         device: dict[str, Any],
         devices_by_mac: dict[str, dict[str, Any]],
+        wired_clients: Mapping[tuple[str, int], set[str]],
 ) -> list[dict[str, Any]]:
     """Return a compact LLDP section, enriched for managed UniFi neighbors."""
     neighbors = []
     for neighbor in device.get("lldp_table", []):
-        if not isinstance(neighbor, dict):
+        if not isinstance(neighbor, dict) or is_wired_client_lldp_entry(
+            device, neighbor, wired_clients
+        ):
             continue
 
         chassis_id = neighbor.get("chassis_id")
@@ -305,12 +355,21 @@ def fetch_site(
     print("<<<<>>>>")
     if args.device_piggyback:
         site_devices_by_mac = devices_by_mac(devices)
+        site_wired_clients_by_switch_port = wired_clients_by_switch_port(users)
         for device in devices:
             host = str(device.get("name") or f"{device.get('model', 'unifi')}-{str(device.get('serial', 'unknown'))[-4:]}")
             piggyback_header(host)
             write_section("unifi_device", device)
-            write_section("unifi_device_if", interfaces_with_lldp_neighbors(device))
-            write_section("unifi_device_lldp", lldp_neighbors(device, site_devices_by_mac))
+            write_section(
+                "unifi_device_if",
+                interfaces_with_lldp_neighbors(device, site_wired_clients_by_switch_port),
+            )
+            write_section(
+                "unifi_device_lldp",
+                lldp_neighbors(
+                    device, site_devices_by_mac, site_wired_clients_by_switch_port
+                ),
+            )
             device_users = [user for user in users if device.get("mac") in {user.get("sw_mac"), user.get("ap_mac")}]
             write_section("unifi_device_users", device_users)
             print("<<<<>>>>")
