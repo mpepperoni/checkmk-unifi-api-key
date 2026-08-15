@@ -213,6 +213,7 @@ class UnifiDevice(UnifiObject):
     serial: str | None = None
     version: str | None = None
     ip: str | None = None
+    uptime: int | None = None
     state: int | str | None = None
     adopted: bool | None = None
     total_max_effective_power: float | None = None

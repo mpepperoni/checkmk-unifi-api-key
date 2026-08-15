@@ -72,6 +72,14 @@ additional hosts it creates.
 | Individual client piggyback | Create one piggyback host per UniFi client. |
 | Client host naming | Select IP address, hostname, or hostname plus domain for client hosts. A client without the selected value is skipped. In hostname-plus-domain mode, an existing matching domain is not appended twice. |
 
+When **Individual client piggyback** is enabled and Checkmk's Dynamic
+Configuration Daemon (DCD) is used for piggyback hosts, DCD creates a host for
+each endpoint using the selected IP address or hostname. To prevent DCD from
+creating hosts whose names are IPv4 addresses, exclude them in the DCD
+configuration field **Only add matching hosts** with a regular expression such
+as
+`^(?!\d{1,3}(?:\.\d{1,3}){3}$).*$`.
+
 TLS certificate validation is enabled by default. Disable it only when the
 controller uses a self-signed certificate and the connection is on a trusted
 network.
