@@ -68,7 +68,6 @@ def _form_spec_special_agent_unifi() -> Dictionary:
                     label=Label("Disable certificate validation"),
                 )
             ),
-
             "udm_pro": DictElement(
                 required=False,
                 group=api_config,

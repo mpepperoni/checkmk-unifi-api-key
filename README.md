@@ -19,7 +19,7 @@ Depending on the selected UniFi features and the data supplied by the
 controller, the extension can create services for:
 
 - Controller state, sites, and controller health
-- UniFi devices, including adoption state and device information
+- UniFi devices, including adoption state, device information, and uptime
 - Switch interfaces, traffic, errors, discards, broadcast and multicast packets
 - PoE status and PoE power budget on switches
 - Access-point radio, SSID, temperature, signal, and noise information
@@ -31,13 +31,25 @@ a temperature sensor.
 
 ## Requirements
 
-- Checkmk 2.4.0p19 or later
+- Checkmk 2.4.0p19 through 2.5.x
 - Network access from the Checkmk site to the UniFi controller HTTPS port
   (normally `443`)
 - A UniFi account that can read the selected sites, devices, and clients
 
 Use a dedicated read-only UniFi account when possible. The extension does not
 need permission to change controller settings.
+
+## Checkmk compatibility
+
+The extension uses Checkmk's Check API v2, Rulesets API v1, Server-side calls
+API v1, and Graphing API v1. These APIs and the plug-in directory layout are
+available in Checkmk 2.4.0p19 and 2.5.x; no 2.5-only API is required.
+
+The inventory display plug-ins and the special-agent helper use Checkmk APIs
+marked as `unstable`. They work with the supported versions, but Checkmk does
+not guarantee their interface across future releases. Test the extension in a
+staging site after a Checkmk update, and run service discovery again when an
+update changes the parsed UniFi data or a service name.
 
 ## Installation and first setup
 
@@ -103,7 +115,8 @@ piggyback host names. Duplicate site descriptions, device names, or client
 names cause data to be written to the same piggyback host and can mix services.
 IP-based client names are usually unique but can change with DHCP.
 
-Typical device services include **UniFi Device**, **UniFi Environment**,
+Typical device services include **UniFi Device**, **UniFi Uptime**,
+**UniFi Environment**,
 **UniFi Radio**, **UniFi SSID**, **Unifi Interface _port_**, **Unifi PoE
 Interface _port_**, and **Unifi PoE budget**. The exact list depends on the
 device type and its reported data.
@@ -119,6 +132,7 @@ UniFi rule unless a rule is named below.
 | **Unifi Site _site_** | WARN when `num_new_alarms` is greater than zero; otherwise OK. | User and guest counts can be emitted once for every controller health subsystem. |
 | **UniFi Health _subsystem_** | OK only for status `ok`, `healthy`, or `good`; any other reported status is WARN. Non-zero pending or disconnected device counts are WARN. | A subsystem with status `unknown` is not discovered. |
 | **UniFi Device** | `connected` is OK, `pending` is WARN, `disconnected` or unknown is CRIT. Not adopted is WARN. Reported EOL, LTS, or incompatible model flags are WARN. | Satisfaction is a 0–100% metric without default alert levels. Both numeric and textual API states are accepted. |
+| **UniFi Uptime** | Always OK when the controller provides a device uptime value. | Uptime in seconds and the standard `uptime` metric. |
 | **UniFi Environment** | Reported overheating is CRIT. Fan level is informational. | Temperature in °C; no numeric temperature levels are configured. |
 | **UniFi Radio _radio_** | Informational (OK). | Channel, client count, and satisfaction; no radio thresholds. |
 | **UniFi SSID _interface_\_SSID_** | WARN when the VAP is down; otherwise OK. | Client count and average signal in dBm. |
@@ -310,9 +324,11 @@ PoE inventory table.
 ### PoE inventory values
 
 The PoE inventory table uses readable values such as `Yes`/`No`, `Auto`,
-`24V Passive`, and `Class 3`. The Checkmk 2.5 inventory user interface provides
-selectable filters for these fields. If a newer controller reports an unknown
-PoE mode, class, or capability value, the raw value is kept in the inventory.
+`24V Passive`, and `Class 3`. Checkmk 2.5 provides selectable inventory filters
+for these fields; the same inventory data is collected on Checkmk 2.4 even
+where that user-interface feature is unavailable. If a newer controller reports
+an unknown PoE mode, class, or capability value, the raw value is kept in the
+inventory.
 
 ## Clients
 
