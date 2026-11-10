@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from cmk.server_side_calls.v1 import HostConfig, Secret, SpecialAgentCommand, SpecialAgentConfig
 
@@ -19,8 +19,9 @@ class UserPiggybackParams(BaseModel):
 
 class UniFiParams(BaseModel):
     hostname: str | None = None
-    username: str
-    password: Secret
+    username: str | None = None
+    password: Secret | None = None
+    api_key: Secret | None = None
     port: int = 443
     udm_pro: bool = False
     sites: list[str] | None = None
@@ -28,6 +29,15 @@ class UniFiParams(BaseModel):
     user_piggyback: UserPiggybackParams | None = None
     user_piggyback_site: bool = False
     no_cert_check: bool = False
+
+    @model_validator(mode="after")
+    def validate_authentication(self):
+        if self.api_key is not None:
+            if self.username or self.password is not None or self.udm_pro or self.user_piggyback is not None or self.user_piggyback_site:
+                raise ValueError("API-key mode cannot use login credentials, UDM-Pro or legacy client piggyback")
+        elif not self.username or self.password is None:
+            raise ValueError("Supply an API key or both username and password")
+        return self
 
 
 def agent_unifi_arguments(
@@ -37,10 +47,13 @@ def agent_unifi_arguments(
     hostname = params.hostname or host_config.name # host_config.primary_ip_config.address
     arguments: list[str | Secret] = [
         "--hostname", hostname,
-        "--username", params.username,
-        "--password-ref", params.password,
         "--port", str(params.port),
     ]
+    if params.api_key is not None:
+        arguments.extend(["--api-key-ref", params.api_key])
+    else:
+        assert params.username is not None and params.password is not None
+        arguments.extend(["--username", params.username, "--password-ref", params.password])
     if params.udm_pro:
         arguments.append("--udm-pro")
     if params.sites is not None:

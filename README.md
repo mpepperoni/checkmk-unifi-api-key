@@ -1,4 +1,24 @@
-# UniFi special agent for Checkmk
+# Checkmk UniFi API-key integration
+
+A fork of [checkmk-extensions/unifi](https://gitlab.com/checkmk-extensions/unifi/)
+that adds local UniFi Network Integration API-key monitoring while preserving
+its existing username/password backend. Upstream author: Frank Baier;
+Apache-2.0 license retained in [LICENSE](LICENSE).
+
+**Pilot implementation:** targets Checkmk 2.5.0p18, UniFi OS 5.1.35 and
+Network 10.6.109. The 42 unit tests pass, but native Checkmk loading and live
+controller collection still require validation. UniFi OS 6 is not yet tested.
+
+Start with [API_KEY_SETUP.md](API_KEY_SETUP.md) for installation, multi-site
+fabric configuration, supported metrics, limitations and rollback. API-key mode
+uses only local authenticated GET requests; it does not log in or perform MFA.
+
+Build the MKP with `python3 tools/build_mkp.py`. For development, install
+`requirements-dev.txt` and run `python -m pytest -q`. GitHub Actions runs the
+tests and publishes a downloadable MKP build artifact for each successful run.
+
+The documentation below describes the inherited username/password backend
+unless stated otherwise.
 
 This extension lets Checkmk collect monitoring data from a UniFi Network
 controller. It is useful when the controller manages switches, access points,

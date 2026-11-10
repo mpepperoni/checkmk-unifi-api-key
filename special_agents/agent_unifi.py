@@ -28,10 +28,11 @@ def parse_arguments(
 ) -> argparse.Namespace:
     parser = create_default_argument_parser(description=__doc__)
     parser.add_argument("--hostname", required=True)
-    parser.add_argument("--username", required=True)
+    parser.add_argument("--username")
     password_group = parser.add_mutually_exclusive_group(required=True)
     password_group.add_argument("--password-ref")
     password_group.add_argument("--password")
+    password_group.add_argument("--api-key-ref")
     parser.add_argument("--port", type=int, default=443)
     parser.add_argument("--udm-pro", action="store_true")
     parser.add_argument("--sites", nargs="*", default=["all"])
@@ -41,6 +42,11 @@ def parse_arguments(
     parser.add_argument("--user-piggyback-site", action="store_true")
     parser.add_argument("--no-cert-check", action="store_true")
     args = parser.parse_args(argv)
+    if args.api_key_ref:
+        if args.username or args.udm_pro or args.user_piggyback or args.user_piggyback_site:
+            parser.error("API-key mode cannot use login, UDM-Pro or legacy client-piggyback options")
+    elif not args.username:
+        parser.error("--username is required for password authentication")
     if args.user_piggyback == "hostname_domain" and not args.user_piggyback_domain:
         parser.error("--user-piggyback-domain is required for hostname_domain piggyback names")
     return args
@@ -387,6 +393,9 @@ def run_agent(
         args: Args,
 ) -> int:
     parsed_args = args
+    if parsed_args.api_key_ref:
+        from .integration import run_integration
+        return run_integration(parsed_args, write_section, piggyback_header)
     verify = not parsed_args.no_cert_check
     if not verify:
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)

@@ -1,0 +1,23 @@
+name: Test and build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+      - run: python -m compileall -q agent_based rulesets server_side_calls special_agents tools tests
+      - run: python tools/build_mkp.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unifi-api-key-mkp
+          path: dist/*.mkp

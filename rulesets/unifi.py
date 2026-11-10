@@ -39,14 +39,14 @@ def _form_spec_special_agent_unifi() -> Dictionary:
                 )
             ),
             "username": DictElement(
-                required=True,
+                required=False,
                 parameter_form=String(
                     title=Title("Username"),
                     custom_validate=(validators.LengthInRange(min_value=1),)
                 )
             ),
             "password": DictElement(
-                required=True,
+                required=False,
                 parameter_form=Password(
                     title=Title("Password"),
                     migrate=migrate_to_password
@@ -59,6 +59,14 @@ def _form_spec_special_agent_unifi() -> Dictionary:
                     prefill=DefaultValue(443),
                     custom_validate=(validators.NetworkPort(),)
                 )
+            ),
+            "api_key": DictElement(
+                required=False,
+                parameter_form=Password(
+                    title=Title("Local Network Integration API key"),
+                    help_text=Help("Create a local key under Network Integrations and store it in the password store. Remove username/password, UDM-Pro and client piggyback options when using this backend. Device piggyback uses unifi- followed by the device MAC without separators. Sites match UUID, internal reference or exact display name."),
+                    migrate=migrate_to_password,
+                ),
             ),
             "no_cert_check": DictElement(
                 required=False,
