@@ -116,3 +116,54 @@ legacy defaults. Switching back requires restoring the old rule credentials
 and rediscovering services. To roll back code, disable this MKP and restore the
 previous package through Checkmk's package manager. Keep a site backup for
 restoring package/rule state if necessary.
+
+## Community Edition: export the device hosts as CSV
+
+Community Edition does not provide DCD automatic host creation. The standalone
+`tools/export_unifi_hosts.py` helper converts the controller's existing special
+agent output into a semicolon-separated `hostname;alias` CSV. It needs Python 3
+only and works with the initial API-key package, so upgrading the MKP is optional.
+It does not contact UniFi or need API keys. Offline devices are included.
+
+1. Enable **Device piggyback** in the controller's UniFi connection rule and
+   activate changes. Run a check on the controller host.
+2. Copy `tools/export_unifi_hosts.py` to the Checkmk server. As the Checkmk site
+   user, substitute the existing Checkmk CONTROLLER HOST NAME below (not its IP):
+
+   ```bash
+   set -o pipefail
+   cmk -d CONTROLLER_HOST | python3 export_unifi_hosts.py > unifi-hosts.csv
+   head -n 3 unifi-hosts.csv
+   wc -l unifi-hosts.csv
+   ```
+
+   The exporter writes the device count to stderr, leaving stdout as CSV only.
+   For 200 devices the CSV has 201 lines, including its header. Do not import if
+   the pipeline reports an error. To avoid another controller collection, a
+   saved `cmk -d` output file can be supplied as the script's positional argument.
+   Normal monitoring runs never write CSV files or change host configuration.
+
+   With the updated MKP, the same helper is installed as
+   `~/local/lib/python3/cmk_addons/plugins/unifi/libexec/unifi_hosts_csv` and can
+   be called through Python using that path instead of `export_unifi_hosts.py`.
+
+3. Create a dedicated UniFi device folder and set inherited host properties to
+   **No IP**, **No API integrations, no Checkmk agent**, **No SNMP**, and
+   **Always use piggyback data**. These are DEVICE-host settings; retain the
+   controller host's special-agent integration. Scope its connection rule to
+   the controller host so it is not inherited by the device hosts.
+4. Use the folder's CSV host import action. Select semicolon as separator and
+   map `hostname` to the Checkmk host name and `alias` to the alias. Treat the
+   first row as column headings. The CSV deliberately leaves connection
+   properties to the folder instead of depending on internal property names.
+5. Test by importing two rows first, activate the new hosts and run service
+   discovery. Confirm data arrives under the MAC-based hostnames.
+6. Import the remaining rows, avoiding duplicates already imported. Run bulk
+   service discovery on the device hosts, accept discovered services, and
+   activate changes. Expect Device, Statistics and available port services.
+
+The helper exports only sites included in the controller's rule. For multiple
+controllers, export each independently and check duplicate hostnames before
+import. Re-running it does not update or delete existing Checkmk hosts: review
+changes and use the importer's supported update behavior or import new rows
+only. Device aliases are readable names; MAC-based hostnames must stay intact.

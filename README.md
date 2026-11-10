@@ -6,8 +6,12 @@ its existing username/password backend. Upstream author: Frank Baier;
 Apache-2.0 license retained in [LICENSE](LICENSE).
 
 **Pilot implementation:** targets Checkmk 2.5.0p18, UniFi OS 5.1.35 and
-Network 10.6.109. The 42 unit tests pass, but native Checkmk loading and live
-controller collection still require validation. UniFi OS 6 is not yet tested.
+Network 10.6.109. Unit tests cover the collector, checks, packaging and CSV export; native
+Checkmk loading and live controller collection require deployment validation. UniFi OS 6 is not yet tested.
+
+Community Edition users can export device hosts with
+[`tools/export_unifi_hosts.py`](tools/export_unifi_hosts.py); see the
+[CSV import instructions](API_KEY_SETUP.md#community-edition-export-the-device-hosts-as-csv).
 
 Start with [API_KEY_SETUP.md](API_KEY_SETUP.md) for installation, multi-site
 fabric configuration, supported metrics, limitations and rollback. API-key mode

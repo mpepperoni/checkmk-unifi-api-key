@@ -7,7 +7,7 @@ import pprint
 import tarfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-VERSION = '2026.11.10-api-key.1'
+VERSION = '2026.11.10-api-key.2'
 DIRECTORIES = ('agent_based', 'graphing', 'inventory_ui', 'libexec', 'rulesets',
                'server_side_calls', 'special_agents')
 
@@ -24,6 +24,7 @@ def build(destination=None):
         paths.extend(p for p in (ROOT / directory).rglob('*') if p.is_file()
                      and '__pycache__' not in p.parts and p.suffix != '.pyc')
     files = {f'unifi/{p.relative_to(ROOT).as_posix()}': p for p in sorted(paths)}
+    files['unifi/libexec/unifi_hosts_csv'] = ROOT / 'tools/export_unifi_hosts.py'
     files['unifi/LICENSE'] = ROOT / 'LICENSE'
     files['unifi/API_KEY_SETUP.md'] = ROOT / 'API_KEY_SETUP.md'
     info = {
@@ -39,7 +40,7 @@ def build(destination=None):
     inner = io.BytesIO()
     with tarfile.open(fileobj=inner, mode='w') as archive:
         for name, path in files.items():
-            add_bytes(archive, name, path.read_bytes(), 0o755 if path.parent.name == 'libexec' else 0o644)
+            add_bytes(archive, name, path.read_bytes(), 0o755 if '/libexec/' in name else 0o644)
     destination = pathlib.Path(destination) if destination else ROOT / 'dist' / f'unifi-{VERSION}.mkp'
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(destination, mode='w:gz') as archive:
